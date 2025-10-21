@@ -4,7 +4,7 @@ plugins {
     id("com.google.gms.google-services")
     id("com.google.dagger.hilt.android")
     kotlin("kapt")
-    kotlin("plugin.serialization") version "1.9.10"
+    kotlin("plugin.serialization")
 }
 
 android {
@@ -21,6 +21,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
