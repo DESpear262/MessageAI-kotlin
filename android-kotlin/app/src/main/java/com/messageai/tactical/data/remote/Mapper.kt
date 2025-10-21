@@ -17,6 +17,7 @@ object Mapper {
     fun messageDocToEntity(doc: MessageDoc): MessageEntity {
         val ts = lwwMillis(doc.timestamp, doc.clientTimestamp)
         val readByJson = json.encodeToString(doc.readBy)
+        val deliveredByJson = json.encodeToString(doc.deliveredBy)
         return MessageEntity(
             id = doc.id,
             chatId = doc.chatId,
@@ -26,6 +27,7 @@ object Mapper {
             timestamp = ts,
             status = doc.status,
             readBy = readByJson,
+            deliveredBy = deliveredByJson,
             synced = !doc.localOnly,
             createdAt = System.currentTimeMillis()
         )
@@ -34,6 +36,9 @@ object Mapper {
     fun entityToMessageDoc(entity: MessageEntity): MessageDoc {
         val readBy: List<String> = try {
             json.decodeFromString(entity.readBy)
+        } catch (_: Exception) { emptyList() }
+        val deliveredBy: List<String> = try {
+            json.decodeFromString(entity.deliveredBy)
         } catch (_: Exception) { emptyList() }
         return MessageDoc(
             id = entity.id,
@@ -44,6 +49,7 @@ object Mapper {
             clientTimestamp = entity.timestamp,
             status = entity.status,
             readBy = readBy,
+            deliveredBy = deliveredBy,
             localOnly = !entity.synced
         )
     }

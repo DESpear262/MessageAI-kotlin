@@ -14,6 +14,7 @@ data class MessageEntity(
     val timestamp: Long,
     val status: String,
     val readBy: String,
+    val deliveredBy: String = "[]",
     val synced: Boolean = false,
     val createdAt: Long
 )

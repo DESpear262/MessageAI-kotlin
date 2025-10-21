@@ -60,6 +60,7 @@ data class MessageDoc(
     val clientTimestamp: Long? = null,
     val status: String = MessageStatus.SENDING.name,
     val readBy: List<String> = emptyList(),
+    val deliveredBy: List<String> = emptyList(),
     val localOnly: Boolean = false,
     val metadata: Map<String, Any?>? = null
 )

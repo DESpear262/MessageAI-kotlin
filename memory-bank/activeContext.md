@@ -1,23 +1,23 @@
 # Active Context
 
 ## Current Focus
-- Block E next: Real-time 1:1 chat wiring (listeners, optimistic send pipeline, states).
+- Block E: Continue with optimistic send pipeline and message state transitions.
 
 ## Recent Changes
-- Block A completed: Android Kotlin project skeleton with flavors, Hilt, Compose Navigation, Material3 theme, Room bootstrap, and Firebase Auth screen.
-- Block C completed: Firestore models, deterministic chat IDs, time/LWW helpers, Room mappers, minimal chat/message services.
-- Block D completed: Paging 3 integration with RemoteMediator, Room indices and remote keys, repository API, schema export config.
+- Implemented per-chat Firestore listener writing through to Room.
+- Added deliveredBy updates on recipient receive; read receipt updater for fully visible messages.
+- Added RTDB presence/typing service (status and typing paths with onDisconnect).
 
 ## Next Steps
-- Implement realtime listeners (Firestore) → Room write-through; optimistic send with queue; message state transitions [Block E].
-- Presence/typing to follow later (RTDB).
+- Wire optimistic send with WorkManager and update message states SENDING→SENT→DELIVERED→READ.
+- Top-of-list listener for new messages and chat list lastMessage synchronization.
 
 ## Decisions & Considerations
-- Material3; function/file size constraints maintained.
-- `BuildConfig.ENV` for dev/prod; separate Firebase projects.
-- LWW policy: server timestamp preferred; clientTimestamp fallback.
+- Mark read only for fully visible messages using viewport tracking; debounce writes.
+- Use `deliveredBy` for delivery acknowledgment; `readBy` for fully viewed.
+- RTDB presence/typing integrated; Firestore remains source for messages.
 
 ## Risks
-- Pagination relies on `timestamp` ordering; ensure Firestore indexes exist for combined queries when added.
-- Network variability; ensure idempotency in send pipeline next.
+- Read batching must be throttled to avoid excessive writes.
+- Ensure security rules enforce self-only updates for delivered/read and typing.
 
