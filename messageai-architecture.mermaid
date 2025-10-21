@@ -1,0 +1,191 @@
+graph TB
+    subgraph "Client Layer - React Native / Kotlin"
+        subgraph "UI Components"
+            AUTH[Auth Screens<br/>Login/Register/Reset]
+            CHATLIST[Chat List Screen<br/>Direct & Groups]
+            CHAT[Chat Screen<br/>Messages & Input]
+            PROFILE[Profile Screen<br/>User Settings]
+            GROUP[Group Creation<br/>Member Selection]
+        end
+        
+        subgraph "State Management"
+            VM[ViewModels/Contexts<br/>Auth, Chat, Presence]
+            STATE[Local State<br/>Optimistic Updates]
+        end
+        
+        subgraph "Services Layer"
+            AUTHSVC[Auth Service<br/>Login/Register/Token]
+            MSGSVC[Message Service<br/>Send/Receive/Status]
+            CHATSVC[Chat Service<br/>List/Create/Subscribe]
+            PRESVC[Presence Service<br/>Online/Typing]
+            IMGSVC[Image Service<br/>Upload/Cache]
+            NOTIFSVC[Notification Service<br/>FCM Token/Handle]
+            QUEUESVC[Queue Service<br/>Retry/Backoff]
+        end
+        
+        subgraph "Local Storage"
+            SQLITE[(Local DB<br/>SQLite/Room<br/>Messages/Chats/Queue)]
+            CACHE[File Cache<br/>Images/Media]
+            PREFS[Secure Storage<br/>Tokens/Settings]
+        end
+        
+        subgraph "Network Layer"
+            NETMON[Network Monitor<br/>Online/Offline State]
+            TRANSPORT[Transport Layer<br/>Firestore Client]
+        end
+        
+        subgraph "Modules - Pluggable"
+            AIMOD[AI Module<br/>Provider Interface<br/>OpenAI → Local LLM]
+            ENCMOD[Encryption Module<br/>Provider Interface<br/>AES-32 → Signal]
+        end
+    end
+    
+    subgraph "Firebase Backend"
+        subgraph "Authentication"
+            FBAUTH[Firebase Auth<br/>Email/Password<br/>Token Management]
+        end
+        
+        subgraph "Real-Time Database"
+            FIRESTORE[(Firestore<br/>users, chats, groups<br/>messages subcollections)]
+            RTDB[(Realtime DB<br/>Presence/Typing<br/>Ephemeral State)]
+        end
+        
+        subgraph "Storage"
+            FBSTORAGE[Firebase Storage<br/>profile-pictures/<br/>chat-media/]
+        end
+        
+        subgraph "Cloud Functions"
+            NOTIFFN[Send Notification<br/>On New Message]
+            PRESENCEFN[Update Presence<br/>On Disconnect]
+            CLEANUPFN[Cleanup Worker<br/>Typing/Old Data]
+        end
+        
+        subgraph "Messaging"
+            FCM[Firebase Cloud<br/>Messaging<br/>Push Delivery]
+        end
+    end
+    
+    subgraph "Future Extensions - Post-MVP"
+        subgraph "Tactical Features"
+            GEO[Geolocation Service<br/>Pin Drops/MGRS]
+            SELFDEST[Self-Destruct<br/>Time-from-Read]
+            NATO[NATO Templates<br/>MEDEVAC/WARNO]
+        end
+        
+        subgraph "Advanced Security"
+            E2E[E2EE Module<br/>Signal Protocol<br/>Key Exchange]
+            HWSEC[Hardware Security<br/>Keystore/HSM]
+        end
+        
+        subgraph "Mesh Networking"
+            BT[Bluetooth Transport<br/>Peer Discovery]
+            WIFI[WiFi-Direct Transport<br/>Group Formation]
+            MESH[Mesh Router<br/>Multi-Hop Relay]
+        end
+        
+        subgraph "AI Features"
+            AIAGENT[AI Agent<br/>Templates/Summary]
+            RAG[RAG Pipeline<br/>Conversation History]
+        end
+    end
+    
+    %% UI to State
+    AUTH --> VM
+    CHATLIST --> VM
+    CHAT --> VM
+    PROFILE --> VM
+    GROUP --> VM
+    
+    %% State to Services
+    VM --> AUTHSVC
+    VM --> MSGSVC
+    VM --> CHATSVC
+    VM --> PRESVC
+    VM --> IMGSVC
+    VM --> NOTIFSVC
+    STATE --> MSGSVC
+    
+    %% Services to Local Storage
+    AUTHSVC --> PREFS
+    MSGSVC --> SQLITE
+    MSGSVC --> QUEUESVC
+    CHATSVC --> SQLITE
+    IMGSVC --> CACHE
+    NOTIFSVC --> PREFS
+    
+    %% Services to Network
+    AUTHSVC --> TRANSPORT
+    MSGSVC --> TRANSPORT
+    CHATSVC --> TRANSPORT
+    PRESVC --> TRANSPORT
+    IMGSVC --> TRANSPORT
+    QUEUESVC --> TRANSPORT
+    QUEUESVC --> NETMON
+    
+    %% Transport to Firebase
+    TRANSPORT --> FIRESTORE
+    TRANSPORT --> RTDB
+    TRANSPORT --> FBSTORAGE
+    TRANSPORT --> FBAUTH
+    
+    %% Network Monitor
+    NETMON --> QUEUESVC
+    
+    %% FCM Flow
+    NOTIFSVC --> FCM
+    FCM --> NOTIFSVC
+    
+    %% Cloud Functions
+    FIRESTORE -.trigger.-> NOTIFFN
+    NOTIFFN --> FCM
+    FBAUTH -.trigger.-> PRESENCEFN
+    PRESENCEFN --> RTDB
+    RTDB -.periodic.-> CLEANUPFN
+    
+    %% Modules (Dotted - Not MVP)
+    MSGSVC -.future.-> ENCMOD
+    CHAT -.future.-> AIMOD
+    
+    %% Future Extensions (Dotted)
+    MSGSVC -.post-MVP.-> GEO
+    MSGSVC -.post-MVP.-> SELFDEST
+    CHAT -.post-MVP.-> NATO
+    ENCMOD -.upgrade.-> E2E
+    PREFS -.upgrade.-> HWSEC
+    TRANSPORT -.future.-> BT
+    TRANSPORT -.future.-> WIFI
+    BT --> MESH
+    WIFI --> MESH
+    AIMOD -.implements.-> AIAGENT
+    AIAGENT --> RAG
+    RAG --> FIRESTORE
+    
+    style AUTH fill:#e1f5ff
+    style CHATLIST fill:#e1f5ff
+    style CHAT fill:#e1f5ff
+    style PROFILE fill:#e1f5ff
+    style GROUP fill:#e1f5ff
+    
+    style SQLITE fill:#fff4e6
+    style CACHE fill:#fff4e6
+    style PREFS fill:#fff4e6
+    
+    style FIRESTORE fill:#e8f5e9
+    style FBAUTH fill:#e8f5e9
+    style FBSTORAGE fill:#e8f5e9
+    style FCM fill:#e8f5e9
+    style RTDB fill:#e8f5e9
+    
+    style AIMOD fill:#f3e5f5
+    style ENCMOD fill:#f3e5f5
+    
+    style GEO fill:#fce4ec,stroke-dasharray: 5 5
+    style SELFDEST fill:#fce4ec,stroke-dasharray: 5 5
+    style NATO fill:#fce4ec,stroke-dasharray: 5 5
+    style E2E fill:#fce4ec,stroke-dasharray: 5 5
+    style HWSEC fill:#fce4ec,stroke-dasharray: 5 5
+    style BT fill:#fce4ec,stroke-dasharray: 5 5
+    style WIFI fill:#fce4ec,stroke-dasharray: 5 5
+    style MESH fill:#fce4ec,stroke-dasharray: 5 5
+    style AIAGENT fill:#fce4ec,stroke-dasharray: 5 5
+    style RAG fill:#fce4ec,stroke-dasharray: 5 5
