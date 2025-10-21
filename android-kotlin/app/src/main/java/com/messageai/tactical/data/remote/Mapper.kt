@@ -1,0 +1,72 @@
+package com.messageai.tactical.data.remote
+
+import com.messageai.tactical.data.db.ChatEntity
+import com.messageai.tactical.data.db.MessageEntity
+import com.messageai.tactical.data.db.SendQueueEntity
+import com.messageai.tactical.data.remote.TimeUtils.lwwMillis
+import com.messageai.tactical.data.remote.TimeUtils.toEpochMillis
+import com.messageai.tactical.data.remote.model.ChatDoc
+import com.messageai.tactical.data.remote.model.LastMessage
+import com.messageai.tactical.data.remote.model.MessageDoc
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+object Mapper {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun messageDocToEntity(doc: MessageDoc): MessageEntity {
+        val ts = lwwMillis(doc.timestamp, doc.clientTimestamp)
+        val readByJson = json.encodeToString(doc.readBy)
+        return MessageEntity(
+            id = doc.id,
+            chatId = doc.chatId,
+            senderId = doc.senderId,
+            text = doc.text,
+            imageUrl = doc.imageUrl,
+            timestamp = ts,
+            status = doc.status,
+            readBy = readByJson,
+            synced = !doc.localOnly,
+            createdAt = System.currentTimeMillis()
+        )
+    }
+
+    fun entityToMessageDoc(entity: MessageEntity): MessageDoc {
+        val readBy: List<String> = try {
+            json.decodeFromString(entity.readBy)
+        } catch (_: Exception) { emptyList() }
+        return MessageDoc(
+            id = entity.id,
+            chatId = entity.chatId,
+            senderId = entity.senderId,
+            text = entity.text,
+            imageUrl = entity.imageUrl,
+            clientTimestamp = entity.timestamp,
+            status = entity.status,
+            readBy = readBy,
+            localOnly = !entity.synced
+        )
+    }
+
+    fun chatDocToEntity(doc: ChatDoc): ChatEntity {
+        val last = doc.lastMessage
+        val lastMsgPreview = when {
+            last?.imageUrl != null -> "[image]"
+            !last?.text.isNullOrBlank() -> last?.text
+            else -> null
+        }
+        return ChatEntity(
+            id = doc.id,
+            type = if ((doc.participants.size) > 2) "group" else "direct",
+            name = null,
+            participants = json.encodeToString(doc.participants),
+            lastMessage = lastMsgPreview,
+            lastMessageTime = toEpochMillis(last?.timestamp),
+            unreadCount = 0,
+            updatedAt = toEpochMillis(doc.updatedAt) ?: System.currentTimeMillis()
+        )
+    }
+
+    fun newQueueItem(messageId: String, chatId: String): SendQueueEntity =
+        SendQueueEntity(id = messageId, messageId = messageId, chatId = chatId, createdAt = System.currentTimeMillis())
+}

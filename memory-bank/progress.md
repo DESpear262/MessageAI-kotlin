@@ -2,18 +2,17 @@
 
 ## Status Overview
 - Block A completed: Project skeleton, flavors, Hilt, Compose nav, Material3, Room bootstrap, Firebase Auth screen.
+- Block C completed: Firestore models (users/chats/groups/messages), paths, time/LWW utilities, mappers, and chat/message services.
 
 ## What Works
-- App builds (expected) with Compose shell and real email/password auth flow.
-- Flavor selection (dev/prod) and ENV flag wiring.
-- Room database with entities/DAOs is in place.
+- Compose shell with Auth→Main and Room database.
+- Firestore wiring: models, deterministic chat IDs, LWW timestamp handling, send/list messages, lastMessage update.
 
 ## What’s Next (MVP)
-- Block B: Auth flows polish + persistent state and Profile screen.
-- Block C: Firestore collections, models, mappers, timestamps, LWW helpers.
-- Block D: Repo layer, pagination, migration stubs and tests.
+- Block B: Auth polish + persistent state and Profile screen (handled by another agent).
+- Block D: Repository layer bridging Room/Firestore, pagination (50/pg) and migration stubs.
 
 ## Known Issues / Notes
-- Requires placing dev/prod `google-services.json` files to run against Firebase.
-- Background notifications not targeted in MVP Block A.
+- Place dev/prod `google-services.json` files.
+- Presence via RTDB to be implemented in later blocks.
 
