@@ -1,19 +1,19 @@
 # Progress
 
 ## Status Overview
-- Block A completed: Project skeleton, flavors, Hilt, Compose nav, Material3, Room bootstrap, Firebase Auth screen.
-- Block B completed: Login/register (6+ password), display name capture, Firestore user doc creation on register, Forgot Password screen (Firestore existence check + reset email), inline errors, minimal profile display.
+- Block A: Project skeleton (flavors, Hilt, Compose, Room, Auth) — done.
+- Block C: Firestore models/paths, LWW utils, mappers, services — done.
+- Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository, schema export — done.
 
 ## What Works
-- Compose shell with Auth→Main and Room database.
-- Auth: register, login, logout, persistent session, forgot password flow.
-- Firestore users collection documents created on registration.
+- Paging messages (50/pg) with infinite scroll using RemoteMediator.
+- Firestore send + list; lastMessage updating on chats.
+- Room as source-of-truth; Firestore wiring ready for listeners.
 
 ## What’s Next (MVP)
-- Block C: Firestore collections, models, mappers, timestamps, LWW helpers.
-- Block D: Repository layer bridging Room/Firestore, pagination (50/pg) and migration stubs.
+- Block E: Real-time listeners, optimistic send pipeline, message states, presence/typing prep.
 
 ## Known Issues / Notes
-- Place dev/prod `google-services.json` files under `android-kotlin/app/src/dev` and `android-kotlin/app/src/prod`.
+- Ensure Firestore index for `messages` ordered by `timestamp` exists.
 - Presence via RTDB to be implemented in later blocks.
 

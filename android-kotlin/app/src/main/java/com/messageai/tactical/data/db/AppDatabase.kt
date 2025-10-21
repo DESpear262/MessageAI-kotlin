@@ -12,7 +12,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Database(
-    entities = [MessageEntity::class, ChatEntity::class, SendQueueEntity::class],
+    entities = [MessageEntity::class, ChatEntity::class, SendQueueEntity::class, RemoteKeys::class],
     version = 1,
     exportSchema = true
 )
@@ -20,6 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun chatDao(): ChatDao
     abstract fun sendQueueDao(): SendQueueDao
+    abstract fun remoteKeysDao(): RemoteKeysDao
 }
 
 @Module
@@ -40,4 +41,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSendQueueDao(db: AppDatabase): SendQueueDao = db.sendQueueDao()
+
+    @Provides
+    fun provideRemoteKeysDao(db: AppDatabase): RemoteKeysDao = db.remoteKeysDao()
 }

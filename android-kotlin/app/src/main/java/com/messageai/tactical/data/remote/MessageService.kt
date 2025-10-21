@@ -27,8 +27,10 @@ class MessageService @Inject constructor(
         var query: Query = messageCollection(chatId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(pageSize.toLong())
-        // For offline sends where timestamp may be null, fallback to clientTimestamp ordering
-        // Secondary ordering requires composite index; keep primary on timestamp
+        if (startAfterTs != null) {
+            // We page by timestamp value; ensuring index exists
+            query = query.startAfter(com.google.firebase.Timestamp(startAfterTs / 1000, ((startAfterTs % 1000) * 1_000_000).toInt()))
+        }
         val snaps = query.get().await()
         return snaps.documents.mapNotNull { it.toObject(MessageDoc::class.java) }
     }

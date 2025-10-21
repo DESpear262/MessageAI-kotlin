@@ -1,5 +1,6 @@
 package com.messageai.tactical.data.db
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -15,8 +16,8 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(message: MessageEntity)
 
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
-    fun getMessages(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>>
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC")
+    fun pagingSource(chatId: String): PagingSource<Int, MessageEntity>
 
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateStatus(messageId: String, status: String)
@@ -50,4 +51,16 @@ interface SendQueueDao {
 
     @Query("SELECT * FROM send_queue ORDER BY createdAt ASC")
     fun items(): Flow<List<SendQueueEntity>>
+}
+
+@Dao
+interface RemoteKeysDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplace(keys: RemoteKeys)
+
+    @Query("SELECT * FROM remote_keys WHERE chatId = :chatId")
+    suspend fun remoteKeys(chatId: String): RemoteKeys?
+
+    @Query("DELETE FROM remote_keys WHERE chatId = :chatId")
+    suspend fun clear(chatId: String)
 }

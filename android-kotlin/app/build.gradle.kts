@@ -47,6 +47,14 @@ android {
     }
 }
 
+kapt {
+    arguments {
+        arg("room.schemaLocation", project.file("schemas").path)
+        arg("room.incremental", "true")
+        arg("room.expandProjection", "true")
+    }
+}
+
 dependencies {
     // Compose
     implementation(platform("androidx.compose:compose-bom:2023.10.01"))
@@ -85,7 +93,14 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // Paging 3
+    implementation("androidx.paging:paging-runtime-ktx:3.3.2")
+    implementation("androidx.paging:paging-compose:3.3.2")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // JSON serialization for Room string fields
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
 }

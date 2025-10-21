@@ -1,24 +1,23 @@
 # Active Context
 
 ## Current Focus
-- Block D next: Room repositories/migrations and pagination helpers.
+- Block E next: Real-time 1:1 chat wiring (listeners, optimistic send pipeline, states).
 
 ## Recent Changes
-- Block A completed: Android Kotlin project skeleton created with dev/prod flavors, Hilt, Compose Navigation, Material3 theme, Room bootstrap, and real Firebase Auth screen.
-- Block B completed: Auth validation (6+ chars), register with display name, Firestore user doc on register, Forgot Password screen with Firestore existence check, inline error UX, minimal profile stub in main. Session persistence via FirebaseAuth defaults.
-- Flavor scaffolding added for `google-services.json` in dev/prod.
+- Block A completed: Android Kotlin project skeleton with flavors, Hilt, Compose Navigation, Material3 theme, Room bootstrap, and Firebase Auth screen.
+- Block C completed: Firestore models, deterministic chat IDs, time/LWW helpers, Room mappers, minimal chat/message services.
+- Block D completed: Paging 3 integration with RemoteMediator, Room indices and remote keys, repository API, schema export config.
 
 ## Next Steps
-- Implement repository layer bridging Room and Firestore; paging (50/pg) and mappers [Block D].
-- Add migration stubs and tests for schema evolution [Block D].
+- Implement realtime listeners (Firestore) → Room write-through; optimistic send with queue; message state transitions [Block E].
+- Presence/typing to follow later (RTDB).
 
 ## Decisions & Considerations
-- Using Material3. Functions kept under 75 lines; files under 750 lines.
-- Flavor-based env selection via `BuildConfig.ENV` (dev/prod). Separate Firebase projects.
-- Conflict policy remains timestamp LWW for MVP.
-- Auth: no email verification for MVP; no Keystore token storage. Forgot password uses Firestore existence check then Firebase email send.
+- Material3; function/file size constraints maintained.
+- `BuildConfig.ENV` for dev/prod; separate Firebase projects.
+- LWW policy: server timestamp preferred; clientTimestamp fallback.
 
 ## Risks
-- Background notifications behavior varies by OEM; MVP targets foreground.
-- Network variability; ensure idempotent queue operations in later blocks.
+- Pagination relies on `timestamp` ordering; ensure Firestore indexes exist for combined queries when added.
+- Network variability; ensure idempotency in send pipeline next.
 
