@@ -5,6 +5,7 @@
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.
 - Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository — done.
 - Block E (in progress): Per-chat listeners; delivered/read receipt mechanics; RTDB presence/typing — partially complete.
+ - Documentation baseline: Headers and KDoc added across Kotlin modules (remote/data, DB, DI, app entry, UI).
 
 ## What Works
 - Per-chat Firestore listener → Room write-through.

@@ -1,3 +1,9 @@
+/**
+ * MessageAI – Room entity definitions.
+ *
+ * Entities mirror Firestore data with additional client-side fields used for
+ * pagination, sync state, and UI rendering.
+ */
 package com.messageai.tactical.data.db
 
 import androidx.room.Entity

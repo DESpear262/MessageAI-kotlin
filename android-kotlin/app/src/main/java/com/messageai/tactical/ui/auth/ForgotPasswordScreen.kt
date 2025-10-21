@@ -1,9 +1,10 @@
 package com.messageai.tactical.ui.auth
 
-/*
- * MessageAI – ForgotPasswordScreen
- * Block B (Authentication): Allows user to enter email, checks Firestore for existence,
- * and sends Firebase Auth password reset email if found.
+/**
+ * MessageAI – Forgot password screen.
+ *
+ * Allows the user to enter an email, checks Firestore for existence, and sends
+ * a Firebase Auth password reset email if found.
  */
 
 import androidx.compose.foundation.layout.Column

@@ -1,3 +1,9 @@
+/**
+ * MessageAI – Root authentication view model.
+ *
+ * Exposes a simple authenticated flag derived from `FirebaseAuth` state and
+ * convenience methods to refresh or sign out.
+ */
 package com.messageai.tactical.ui
 
 import androidx.lifecycle.ViewModel
@@ -16,10 +22,12 @@ class RootViewModel @Inject constructor(
     private val _isAuthenticated = MutableStateFlow(auth.currentUser != null)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated
 
+    /** Refreshes `_isAuthenticated` from the current auth user. */
     fun refreshAuthState() {
         _isAuthenticated.value = auth.currentUser != null
     }
 
+    /** Signs out the user and updates state. */
     fun logout() {
         viewModelScope.launch {
             auth.signOut()

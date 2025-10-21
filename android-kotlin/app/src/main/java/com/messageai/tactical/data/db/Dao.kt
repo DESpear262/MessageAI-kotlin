@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Room DAOs for local persistence.
+ *
+ * Streaming queries back UI flows, while mutation methods are suspendable to
+ * encourage off-main-thread usage. Pagination for messages uses a keyed query
+ * ordered by timestamp.
+ */
 package com.messageai.tactical.data.db
 
 import androidx.paging.PagingSource

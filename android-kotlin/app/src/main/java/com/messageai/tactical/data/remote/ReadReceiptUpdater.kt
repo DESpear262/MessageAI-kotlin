@@ -1,3 +1,9 @@
+/**
+ * MessageAI – Read receipts batching.
+ *
+ * Batches updates to add the current user's UID to `readBy` for messages that
+ * are fully visible on screen. Executed off the main thread to avoid jank.
+ */
 package com.messageai.tactical.data.remote
 
 import com.google.firebase.auth.FirebaseAuth

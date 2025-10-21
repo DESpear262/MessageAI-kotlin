@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Firebase service providers.
+ *
+ * Hilt module exposing singletons for Auth, Firestore, and Storage. Centralizes
+ * Firebase initialization so call sites can depend on interfaces rather than
+ * concrete factories.
+ */
 package com.messageai.tactical.di
 
 import com.google.firebase.auth.FirebaseAuth

@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Firestore document models.
+ *
+ * These DTOs represent the shape of documents stored in Firestore. They are
+ * intentionally tolerant to unknown fields and default to safe values to
+ * support forward compatibility.
+ */
 package com.messageai.tactical.data.remote.model
 
 import com.google.firebase.Timestamp

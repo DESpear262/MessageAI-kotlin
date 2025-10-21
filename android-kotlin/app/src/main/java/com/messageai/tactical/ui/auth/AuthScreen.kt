@@ -1,9 +1,11 @@
 package com.messageai.tactical.ui.auth
 
-/*
- * MessageAI – AuthScreen
- * Block B (Authentication): Email/password login and account creation with display name field,
- * entry point to Forgot Password screen. Inline error text for validation and backend errors.
+/**
+ * MessageAI – Authentication screen.
+ *
+ * Email/password login and account creation (with display name). Provides an
+ * entry point to Forgot Password. Displays inline errors for validation/backend
+ * failures.
  */
 
 import androidx.compose.foundation.clickable

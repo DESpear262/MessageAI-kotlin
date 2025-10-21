@@ -1,9 +1,10 @@
 package com.messageai.tactical.ui.main
 
-/*
- * MessageAI – MainTabs
- * Minimal main area placeholder. Displays a profile stub (display name + default avatar initial)
- * and provides a Logout button. Full chat UI arrives in later blocks.
+/**
+ * MessageAI – Main tabs placeholder.
+ *
+ * Minimal main area with a profile stub and logout action. Full chat UI will
+ * be implemented in subsequent blocks.
  */
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

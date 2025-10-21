@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Paging RemoteMediator for messages.
+ *
+ * Bridges Room and Firestore to load newer pages on demand. Uses a single
+ * `RemoteKeys` row per chat to track the next timestamp key (newest-first
+ * pagination). Refresh clears caches for the chat before inserting.
+ */
 package com.messageai.tactical.data.remote
 
 import androidx.paging.ExperimentalPagingApi

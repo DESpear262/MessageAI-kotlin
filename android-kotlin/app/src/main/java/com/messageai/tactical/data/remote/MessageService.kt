@@ -1,3 +1,11 @@
+/**
+ * MessageAI – Firestore message operations.
+ *
+ * Thin service over Firestore for message-related CRUD and pagination. Uses
+ * descending timestamp ordering and supports keyset pagination by startAfter
+ * with the message's server timestamp. Ensure composite indexes exist for
+ * queries used here.
+ */
 package com.messageai.tactical.data.remote
 
 import com.google.firebase.firestore.FirebaseFirestore
@@ -11,11 +19,13 @@ import javax.inject.Singleton
 class MessageService @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+    /** Returns the message sub-collection for a given chat. */
     fun messageCollection(chatId: String) = firestore
         .collection(FirestorePaths.CHATS)
         .document(chatId)
         .collection(FirestorePaths.MESSAGES)
 
+    /** Creates or replaces a message document by its deterministic id. */
     suspend fun sendMessage(doc: MessageDoc) {
         messageCollection(doc.chatId)
             .document(doc.id)
@@ -23,6 +33,13 @@ class MessageService @Inject constructor(
             .await()
     }
 
+    /**
+     * Pages messages newest-first with optional keyset pagination.
+     *
+     * @param chatId Chat identifier
+     * @param pageSize Max items to fetch
+     * @param startAfterTs Optional epoch millis to continue after
+     */
     suspend fun pageMessages(chatId: String, pageSize: Int, startAfterTs: Long? = null): List<MessageDoc> {
         var query: Query = messageCollection(chatId)
             .orderBy("timestamp", Query.Direction.DESCENDING)

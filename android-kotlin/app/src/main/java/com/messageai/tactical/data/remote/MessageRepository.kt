@@ -1,3 +1,9 @@
+/**
+ * MessageAI – Paging repository for chat messages.
+ *
+ * Exposes a Paging3 `Flow<PagingData<MessageEntity>>` sourced from Room with a
+ * `RemoteMediator` that backfills from Firestore in 50-item pages by default.
+ */
 package com.messageai.tactical.data.remote
 
 import androidx.paging.ExperimentalPagingApi
@@ -18,6 +24,7 @@ class MessageRepository @Inject constructor(
     private val service: MessageService
 ) {
     @OptIn(ExperimentalPagingApi::class)
+    /** Returns a paged stream of messages for a chat, newest-first. */
     fun messages(chatId: String, pageSize: Int = 50): Flow<PagingData<MessageEntity>> {
         return Pager(
             config = PagingConfig(pageSize = pageSize, enablePlaceholders = false),

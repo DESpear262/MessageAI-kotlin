@@ -1,10 +1,11 @@
 package com.messageai.tactical.ui.auth
 
-/*
- * MessageAI – AuthViewModel
- * Block B (Authentication): Handles login, registration (with display name),
- * Firestore user document creation, and password reset with Firestore existence check.
- * Session persistence leverages FirebaseAuth defaults.
+/**
+ * MessageAI – Authentication view model.
+ *
+ * Handles login, registration with display name, Firestore user document
+ * creation, and password reset flow with Firestore existence check. Session
+ * persistence leverages FirebaseAuth defaults.
  */
 
 import androidx.lifecycle.ViewModel

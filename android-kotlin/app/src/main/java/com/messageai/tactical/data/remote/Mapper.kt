@@ -1,3 +1,11 @@
+/**
+ * MessageAI – DTO <-> Entity mapping helpers.
+ *
+ * Contains pure functions to translate between Firestore models (network layer)
+ * and Room entities (local persistence). Also provides helpers to construct
+ * queue items for outbound messages. These mappers encapsulate decisions like
+ * LWW timestamp resolution and JSON encoding for list fields.
+ */
 package com.messageai.tactical.data.remote
 
 import com.messageai.tactical.data.db.ChatEntity
@@ -14,6 +22,7 @@ import kotlinx.serialization.json.Json
 object Mapper {
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** Maps a Firestore [MessageDoc] to a Room [MessageEntity]. */
     fun messageDocToEntity(doc: MessageDoc): MessageEntity {
         val ts = lwwMillis(doc.timestamp, doc.clientTimestamp)
         val readByJson = json.encodeToString(doc.readBy)
@@ -33,6 +42,7 @@ object Mapper {
         )
     }
 
+    /** Maps a Room [MessageEntity] back to a Firestore [MessageDoc]. */
     fun entityToMessageDoc(entity: MessageEntity): MessageDoc {
         val readBy: List<String> = try {
             json.decodeFromString(entity.readBy)
@@ -54,6 +64,7 @@ object Mapper {
         )
     }
 
+    /** Maps a Firestore [ChatDoc] to a Room [ChatEntity] with derived fields. */
     fun chatDocToEntity(doc: ChatDoc): ChatEntity {
         val last = doc.lastMessage
         val lastMsgPreview = when {
@@ -73,6 +84,7 @@ object Mapper {
         )
     }
 
+    /** Constructs a new [SendQueueEntity] for an outbound message. */
     fun newQueueItem(messageId: String, chatId: String): SendQueueEntity =
         SendQueueEntity(id = messageId, messageId = messageId, chatId = chatId, createdAt = System.currentTimeMillis())
 }

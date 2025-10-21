@@ -1,3 +1,9 @@
+/**
+ * MessageAI – Compose app root and navigation graph.
+ *
+ * Sets theme, hosts the `NavHost`, and switches start destination based on
+ * authentication state managed by `RootViewModel`.
+ */
 package com.messageai.tactical.ui
 
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +21,7 @@ import com.messageai.tactical.ui.main.MainTabs
 import com.messageai.tactical.ui.theme.MessageAITheme
 
 @Composable
+/** Root composable establishing theme, nav controller, and routes. */
 fun MessageAiAppRoot() {
     MessageAITheme {
         Surface(color = MaterialTheme.colorScheme.background) {

@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Realtime Database presence and typing.
+ *
+ * Maintains an online/offline presence flag under `status/{uid}` and a typing
+ * indicator under `typing/{chatId}/{uid}`. Uses onDisconnect to ensure a sane
+ * offline state when the client terminates unexpectedly.
+ */
 package com.messageai.tactical.data.remote
 
 import com.google.firebase.auth.FirebaseAuth

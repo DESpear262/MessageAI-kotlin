@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Room database and DI bindings.
+ *
+ * Defines the app's Room schema and provides Hilt modules for database and DAO
+ * instances. The DB currently includes messages, chats, an outbound send queue,
+ * and remote pagination keys.
+ */
 package com.messageai.tactical.data.db
 
 import android.content.Context

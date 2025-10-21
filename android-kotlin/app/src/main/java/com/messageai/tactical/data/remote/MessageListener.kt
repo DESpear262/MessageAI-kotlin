@@ -1,3 +1,10 @@
+/**
+ * MessageAI – Real-time listener bridging Firestore to Room.
+ *
+ * Listens for message document changes within a chat and writes-through to the
+ * local database. Also performs best-effort delivery acknowledgements by adding
+ * the current user's UID to `deliveredBy` for received messages.
+ */
 package com.messageai.tactical.data.remote
 
 import com.google.firebase.auth.FirebaseAuth
