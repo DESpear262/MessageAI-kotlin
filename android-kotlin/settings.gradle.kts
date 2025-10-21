@@ -5,12 +5,12 @@ pluginManagement {
         gradlePluginPortal()
     }
     plugins {
-        id("com.android.application") version "8.9.0-rc01"
-        id("org.jetbrains.kotlin.android") version "1.9.23"
-        id("org.jetbrains.kotlin.kapt") version "1.9.23"
-        id("org.jetbrains.kotlin.plugin.serialization") version "1.9.23"
+        id("com.android.application") version "9.1.0-alpha01"
+        id("org.jetbrains.kotlin.android") version "2.0.21"
+        id("org.jetbrains.kotlin.kapt") version "2.0.21"
+        id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
         id("com.google.gms.google-services") version "4.4.2"
-        id("com.google.dagger.hilt.android") version "2.51.1"
+        id("com.google.dagger.hilt.android") version "2.52"
     }
 }
 
