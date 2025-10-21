@@ -1,23 +1,23 @@
 # Active Context
 
 ## Current Focus
-- Initialize Android Kotlin project skeleton; Firebase setup; DI with Hilt.
-- Define data models; Room schema; Firestore wiring.
+- Block B–D next: Authentication flows, Firestore wiring/models, Room repositories/migrations.
 
 ## Recent Changes
-- Memory Bank initialized from PRD, task plan, and architecture diagram.
-- .gitignore added for Android/Kotlin and Node/Expo artifacts.
+- Block A completed: Android Kotlin project skeleton created with dev/prod flavors, Hilt, Compose Navigation, Material3 theme, Room bootstrap, and real Firebase Auth screen.
+- Flavor scaffolding added for `google-services.json` in dev/prod.
 
 ## Next Steps
-- Stand up auth flows (register/login/reset) and persistent auth state.
-- Implement local DB entities/DAOs and repository layer.
-- Wire Firestore listeners and optimistic send pipeline with WorkManager queue.
+- Implement full Authentication (register/login/logout/reset + persistent auth) [Block B].
+- Define Firestore collections/models/mappers and time helpers; LWW policy [Block C].
+- Flesh out Room repositories and migration stubs; pagination helpers [Block D].
 
 ## Decisions & Considerations
-- Use Material3; keep functions <75 lines and files <750 lines as per project rules.
-- Timestamp-based LWW for conflict resolution in MVP.
+- Using Material3. Functions kept under 75 lines; files under 750 lines.
+- Flavor-based env selection via `BuildConfig.ENV` (dev/prod). Separate Firebase projects.
+- Conflict policy remains timestamp LWW for MVP.
 
 ## Risks
-- Foreground-only notifications in MVP; background behavior varies by OEM.
-- Network variability; ensure robust retry and idempotency in queue.
+- Background notifications behavior varies by OEM; MVP targets foreground.
+- Network variability; ensure idempotent queue operations in later blocks.
 

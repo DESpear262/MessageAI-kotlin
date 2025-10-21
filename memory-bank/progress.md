@@ -1,18 +1,19 @@
 # Progress
 
 ## Status Overview
-- Documentation initialized (Memory Bank) and .gitignore configured.
+- Block A completed: Project skeleton, flavors, Hilt, Compose nav, Material3, Room bootstrap, Firebase Auth screen.
 
 ## What Works
-- Project documentation foundation complete.
+- App builds (expected) with Compose shell and real email/password auth flow.
+- Flavor selection (dev/prod) and ENV flag wiring.
+- Room database with entities/DAOs is in place.
 
-## What’s Left (MVP)
-- Block A–D: project skeleton, Firebase, Hilt, auth screens, Room schema.
-- Block E–I: 1:1 chat, queue, presence/typing, states, offline sync.
-- Block F–H: groups, media, notifications.
-- Block K–L: testing matrix and packaging.
+## What’s Next (MVP)
+- Block B: Auth flows polish + persistent state and Profile screen.
+- Block C: Firestore collections, models, mappers, timestamps, LWW helpers.
+- Block D: Repo layer, pagination, migration stubs and tests.
 
 ## Known Issues / Notes
-- Notifications robust background handling deferred to post-MVP if needed.
-- Image compression optimization is not planned in MVP.
+- Requires placing dev/prod `google-services.json` files to run against Firebase.
+- Background notifications not targeted in MVP Block A.
 
