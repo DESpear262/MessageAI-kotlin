@@ -1,7 +1,13 @@
+/**
+ * MessageAI – HapticTab.
+ *
+ * Wraps the tab bar button to provide iOS haptic feedback on press-in.
+ */
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
 
+/** Tab bar button with light haptic feedback on iOS. */
 export function HapticTab(props: BottomTabBarButtonProps) {
   return (
     <PlatformPressable

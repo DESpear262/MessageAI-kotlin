@@ -1,3 +1,8 @@
+/**
+ * MessageAI – IconSymbol (iOS).
+ *
+ * Renders native SF Symbols on iOS using `expo-symbols`.
+ */
 import { SymbolView, SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { StyleProp, ViewStyle } from 'react-native';
 

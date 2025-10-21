@@ -1,3 +1,8 @@
+/**
+ * MessageAI – Home screen.
+ *
+ * Demonstrates a parallax header and basic navigation links.
+ */
 import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
 
@@ -7,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
 
+/** Initial home tab content. */
 export default function HomeScreen() {
   return (
     <ParallaxScrollView

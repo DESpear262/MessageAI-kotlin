@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * This script is used to reset the project to a blank state.
- * It deletes or moves the /app, /components, /hooks, /scripts, and /constants directories to /app-example based on user input and creates a new /app directory with an index.tsx and _layout.tsx file.
- * You can remove the `reset-project` script from package.json and safely delete this file after running it.
+ * MessageAI – Reset project script.
+ *
+ * Resets the RN app to a blank state by moving or deleting key directories and
+ * bootstrapping a minimal `app/` directory. Interactive prompt allows keeping
+ * an `app-example` backup.
  */
 
 const fs = require("fs");
@@ -45,6 +47,10 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
+/**
+ * Moves or deletes old directories, then recreates a minimal app layout.
+ * @param {string} userInput 'y' to move to /app-example, 'n' to delete
+ */
 const moveDirectories = async (userInput) => {
   try {
     if (userInput === "y") {

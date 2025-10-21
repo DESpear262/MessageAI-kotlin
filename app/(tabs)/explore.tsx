@@ -1,3 +1,8 @@
+/**
+ * MessageAI – Explore screen.
+ *
+ * Showcases example components, routing, and theming utilities.
+ */
 import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
 
@@ -9,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '@/constants/theme';
 
+/** Example secondary tab content. */
 export default function TabTwoScreen() {
   return (
     <ParallaxScrollView

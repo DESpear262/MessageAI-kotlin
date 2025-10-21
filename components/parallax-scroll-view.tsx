@@ -1,3 +1,8 @@
+/**
+ * MessageAI – ParallaxScrollView.
+ *
+ * Provides a header with a parallax transform driven by scroll offset.
+ */
 import type { PropsWithChildren, ReactElement } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {

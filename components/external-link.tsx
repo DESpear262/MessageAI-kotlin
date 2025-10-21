@@ -1,9 +1,18 @@
+/**
+ * MessageAI – ExternalLink.
+ *
+ * Wraps Expo Router `Link` to open external URLs in an in-app browser on native.
+ */
 import { Href, Link } from 'expo-router';
 import { openBrowserAsync, WebBrowserPresentationStyle } from 'expo-web-browser';
 import { type ComponentProps } from 'react';
 
 type Props = Omit<ComponentProps<typeof Link>, 'href'> & { href: Href & string };
 
+/**
+ * Renders a link that opens externally on native.
+ * @param href Absolute URL string
+ */
 export function ExternalLink({ href, ...rest }: Props) {
   return (
     <Link

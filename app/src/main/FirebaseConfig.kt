@@ -1,3 +1,8 @@
+/**
+ * MessageAI – Firebase service providers (app module).
+ *
+ * Hilt module mirroring the core Firebase providers for this module scope.
+ */
 package com.messageai.config
 
 import com.google.firebase.auth.FirebaseAuth

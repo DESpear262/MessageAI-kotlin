@@ -1,3 +1,8 @@
+/**
+ * MessageAI – HelloWave.
+ *
+ * A small animated waving hand using `react-native-reanimated`.
+ */
 import Animated from 'react-native-reanimated';
 
 export function HelloWave() {
