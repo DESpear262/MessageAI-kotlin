@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.messageai.tactical.ui.auth.AuthScreen
+import com.messageai.tactical.ui.auth.ForgotPasswordScreen
 import com.messageai.tactical.ui.main.MainTabs
 import com.messageai.tactical.ui.theme.MessageAITheme
 
@@ -26,14 +27,16 @@ fun MessageAiAppRoot() {
                 startDestination = if (isAuthenticated) "main" else "auth"
             ) {
                 composable("auth") {
-                    AuthScreen(onAuthenticated = {
-                        vm.refreshAuthState()
-                    })
+                    AuthScreen(
+                        onAuthenticated = { vm.refreshAuthState() },
+                        onForgotPassword = { navController.navigate("forgot") }
+                    )
+                }
+                composable("forgot") {
+                    ForgotPasswordScreen(onBack = { navController.popBackStack() })
                 }
                 composable("main") {
-                    MainTabs(onLogout = {
-                        vm.logout()
-                    })
+                    MainTabs(onLogout = { vm.logout() })
                 }
             }
         }
