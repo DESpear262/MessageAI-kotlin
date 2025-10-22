@@ -30,20 +30,20 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        android.util.Log.d("MessagingService", "Message received from: ${message.from}")
-        android.util.Log.d("MessagingService", "Message data: ${message.data}")
-        android.util.Log.d("MessagingService", "Message notification: ${message.notification}")
+        android.util.Log.d("MessagingService", "===== Message received from: ${message.from} =====")
+        android.util.Log.d("MessagingService", "Data payload: ${message.data}")
+        android.util.Log.d("MessagingService", "Notification payload: title='${message.notification?.title}', body='${message.notification?.body}'")
 
         // Handle both data-only messages and notification messages
-        val chatId = message.data["chatId"] ?: message.notification?.let { 
-            // If it's a notification-only message, we can't extract chatId, so just show notification
-            null
-        }
+        val chatId = message.data["chatId"]
         val title = message.data["title"] ?: message.notification?.title ?: "New message"
         val body = message.data["body"] ?: message.notification?.body ?: ""
 
+        android.util.Log.d("MessagingService", "Extracted: chatId=$chatId, title=$title, body=$body")
+
         // Prefer in-app banner when app is in foreground. We emit regardless; UI decides visibility.
         if (chatId != null) {
+            android.util.Log.d("MessagingService", "Emitting in-app notification")
             NotificationCenter.emitInApp(
                 NotificationCenter.InAppMessage(
                     chatId = chatId,
@@ -54,6 +54,7 @@ class MessagingService : FirebaseMessagingService() {
         }
 
         // Show system notification (works both in foreground and background)
+        android.util.Log.d("MessagingService", "Showing system notification")
         showSystemNotification(title, body, chatId)
     }
 

@@ -60,7 +60,7 @@ fun MessageAiAppRoot() {
                 NotificationCenter.inAppMessages.collect { msg ->
                     // Show in-app banner; on action tap, navigate to chat
                     val result = snackbarHostState.showSnackbar(
-                        message = "${'$'}{msg.title}: ${'$'}{msg.preview}",
+                        message = "${msg.title}: ${msg.preview}",
                         actionLabel = "Open",
                         withDismissAction = true
                     )
