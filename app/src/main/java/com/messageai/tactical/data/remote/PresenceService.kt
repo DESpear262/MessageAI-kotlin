@@ -1,3 +1,10 @@
+/**
+ * MessageAI – User presence monitoring via Realtime Database.
+ *
+ * Provides Flow-based APIs to observe user online/offline status. Connects to
+ * RTDB `status/{uid}/state` paths and emits boolean presence indicators. Used
+ * throughout the UI to show presence dots and online status.
+ */
 package com.messageai.tactical.data.remote
 
 import com.google.firebase.auth.FirebaseAuth
@@ -16,6 +23,15 @@ class PresenceService @Inject constructor(
     private val auth: FirebaseAuth,
     private val rtdb: FirebaseDatabase
 ) {
+    /**
+     * Returns a Flow that emits the online status of a specific user.
+     *
+     * Listens to `status/{userId}/state` in RTDB and emits true when the value
+     * is "online", false otherwise. The Flow remains active until cancelled.
+     *
+     * @param userId The UID of the user to monitor
+     * @return Flow<Boolean> emitting true for online, false for offline
+     */
     fun isUserOnline(userId: String): Flow<Boolean> = callbackFlow {
         android.util.Log.d("PresenceService", "Starting presence listener for user: $userId")
         val ref = rtdb.getReference("status/$userId/state")
@@ -37,6 +53,13 @@ class PresenceService @Inject constructor(
         }
     }
 
+    /**
+     * Returns a Flow that emits the current user's own online status.
+     *
+     * Convenience wrapper around isUserOnline for the authenticated user.
+     *
+     * @return Flow<Boolean> emitting the current user's presence
+     */
     fun meOnline(): Flow<Boolean> {
         val uid = auth.currentUser?.uid ?: ""
         return if (uid.isEmpty()) callbackFlow { trySend(false); close() } else isUserOnline(uid)

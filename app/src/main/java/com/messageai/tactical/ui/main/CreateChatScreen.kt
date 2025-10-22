@@ -1,3 +1,11 @@
+/**
+ * MessageAI – New chat/group creation screen.
+ *
+ * Allows users to search for other users by email or display name and add them
+ * to a participant list. If exactly one other user is selected, creates a 1:1
+ * direct chat with a deterministic ID. If multiple users are selected, creates
+ * a group chat with a random ID and auto-generated name.
+ */
 package com.messageai.tactical.ui.main
 
 import androidx.compose.foundation.layout.*
@@ -92,6 +100,15 @@ class CreateChatViewModel @Inject constructor(
 ) : androidx.lifecycle.ViewModel() {
     val meUid: String? get() = auth.currentUser?.uid
 
+    /**
+     * Searches for a user by email or display name in Firestore.
+     *
+     * First attempts an exact match on the email field, then falls back to
+     * case-insensitive display name search via the displayNameLower index.
+     *
+     * @param q The email or display name to search for
+     * @return User document data if found, null otherwise
+     */
     suspend fun lookupUser(q: String): Map<String, Any>? {
         val byEmail = firestore.collection("users").whereEqualTo("email", q).limit(1).get().await()
         if (!byEmail.isEmpty) return byEmail.documents.first().data
@@ -100,6 +117,14 @@ class CreateChatViewModel @Inject constructor(
         return null
     }
 
+    /**
+     * Creates or retrieves a 1:1 direct chat with another user.
+     *
+     * Uses deterministic chat IDs so the same two users always get the same chat.
+     *
+     * @param otherUid The UID of the other participant
+     * @return The chat ID, or null if not authenticated
+     */
     suspend fun ensureDirect(otherUid: String): String? {
         val me = auth.currentUser ?: return null
         val myName = me.displayName ?: me.email ?: "Me"
@@ -109,11 +134,28 @@ class CreateChatViewModel @Inject constructor(
         return chatService.ensureDirectChat(me.uid, otherUid, myName, otherName)
     }
 
+    /**
+     * Creates a new group chat with the specified members.
+     *
+     * @param memberUids List of all participant UIDs (including creator)
+     * @param memberNames Map of UID to display name for participants
+     * @param name Optional group name
+     * @return The new group chat ID, or null if not authenticated
+     */
     suspend fun createGroup(memberUids: List<String>, memberNames: Map<String, String>, name: String?): String? {
         return chatService.createGroupChat(name, memberUids, memberNames)
     }
 
-    fun autoName(uids: List<String>, names: Map<String, String>, me: String): String = uids.filter { it != me }.map { names[it] ?: it }.joinToString(", ")
+    /**
+     * Generates an auto-name for a group by joining participant names.
+     *
+     * @param uids All participant UIDs
+     * @param names Map of UID to display name
+     * @param me Current user's UID (excluded from the name)
+     * @return Comma-separated list of other participants' names
+     */
+    fun autoName(uids: List<String>, names: Map<String, String>, me: String): String = 
+        uids.filter { it != me }.map { names[it] ?: it }.joinToString(", ")
 }
 
 
