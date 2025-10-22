@@ -30,15 +30,32 @@ class ImageUploadWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val messageId = inputData.getString(KEY_MESSAGE_ID) ?: return Result.failure()
-        val chatId = inputData.getString(KEY_CHAT_ID) ?: return Result.failure()
-        val localPath = inputData.getString(KEY_IMAGE_LOCAL_PATH) ?: return Result.failure()
-        val senderId = inputData.getString(KEY_SENDER_ID) ?: return Result.failure()
+        android.util.Log.d("ImageUploadWorker", "Starting image upload for message: $inputData")
+        val messageId = inputData.getString(KEY_MESSAGE_ID)
+        val chatId = inputData.getString(KEY_CHAT_ID)
+        val localPath = inputData.getString(KEY_IMAGE_LOCAL_PATH)
+        val senderId = inputData.getString(KEY_SENDER_ID)
+
+        if (messageId == null || chatId == null || localPath == null || senderId == null) {
+            android.util.Log.e("ImageUploadWorker", "Missing required input data: messageId=$messageId, chatId=$chatId, localPath=$localPath, senderId=$senderId")
+            return Result.failure()
+        }
 
         return try {
-            val uri = Uri.fromFile(java.io.File(localPath))
+            android.util.Log.d("ImageUploadWorker", "Processing image from: $localPath")
+            val file = java.io.File(localPath)
+            if (!file.exists()) {
+                android.util.Log.e("ImageUploadWorker", "Image file does not exist: $localPath")
+                return Result.failure()
+            }
+            
+            val uri = Uri.fromFile(file)
+            android.util.Log.d("ImageUploadWorker", "Starting upload to Firebase Storage...")
             val downloadUrl = imageService.processAndUpload(chatId, messageId, senderId, uri)
+            android.util.Log.d("ImageUploadWorker", "Upload successful! URL: $downloadUrl")
 
+            // Update Firestore message document
+            android.util.Log.d("ImageUploadWorker", "Updating Firestore message document...")
             val col = firestore.collection(FirestorePaths.CHATS).document(chatId)
                 .collection(FirestorePaths.MESSAGES)
             col.document(messageId)
@@ -48,6 +65,7 @@ class ImageUploadWorker @AssistedInject constructor(
                     "timestamp" to FieldValue.serverTimestamp()
                 ))
                 .await()
+            android.util.Log.d("ImageUploadWorker", "Firestore message updated successfully")
 
             // Update lastMessage on chat
             val last = hashMapOf(
@@ -60,11 +78,16 @@ class ImageUploadWorker @AssistedInject constructor(
                 .update(mapOf("lastMessage" to last, "updatedAt" to FieldValue.serverTimestamp()))
                 .await()
 
-            // Patch local entity
+            // Patch local Room entity
+            android.util.Log.d("ImageUploadWorker", "Updating Room database...")
             db.messageDao().updateImageAndStatus(messageId, downloadUrl, "SENT")
+            android.util.Log.d("ImageUploadWorker", "Image upload complete!")
 
             Result.success()
         } catch (e: Exception) {
+            android.util.Log.e("ImageUploadWorker", "Image upload failed for message $messageId", e)
+            android.util.Log.e("ImageUploadWorker", "Error details: ${e.message}")
+            e.printStackTrace()
             Result.retry()
         }
     }

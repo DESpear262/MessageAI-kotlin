@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.messageai.tactical.data.db.ChatDao
+import com.messageai.tactical.data.db.MessageDao
 import com.messageai.tactical.data.remote.model.ChatDoc
 import com.messageai.tactical.data.remote.model.LastMessage
 import com.messageai.tactical.data.remote.model.ParticipantInfo
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 class ChatService @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val chatDao: ChatDao
+    private val chatDao: ChatDao,
+    private val messageDao: MessageDao
 ) {
     private val chats = firestore.collection(FirestorePaths.CHATS)
     private var reg: ListenerRegistration? = null
@@ -99,6 +101,27 @@ class ChatService @Inject constructor(
                 val entities = snap.documents.mapNotNull { it.toObject(ChatDoc::class.java) }
                     .map { Mapper.chatDocToEntityForUser(it, me) }
                 chatDao.upsertAll(entities)
+                
+                // Calculate unread counts for each chat
+                android.util.Log.d("ChatService", "Calculating unread counts for ${entities.size} chats")
+                entities.forEach { chatEntity ->
+                    val chatId = chatEntity.id
+                    val allMessages = messageDao.getAllMessagesForChat(chatId)
+                    
+                    // Count messages not sent by me AND not in my readBy list
+                    val unreadMessages = allMessages.filter { msg ->
+                        msg.senderId != me && run {
+                            val readByList = try {
+                                kotlinx.serialization.json.Json.decodeFromString<List<String>>(msg.readBy)
+                            } catch (_: Exception) { emptyList() }
+                            !readByList.contains(me)
+                        }
+                    }
+                    
+                    val unreadCount = unreadMessages.size
+                    android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total messages)")
+                    chatDao.updateUnread(chatId, unreadCount)
+                }
             }
         }
     }
