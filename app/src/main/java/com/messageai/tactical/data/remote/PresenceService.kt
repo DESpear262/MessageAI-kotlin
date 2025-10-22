@@ -17,7 +17,7 @@ class PresenceService @Inject constructor(
     private val rtdb: FirebaseDatabase
 ) {
     fun isUserOnline(userId: String): Flow<Boolean> = callbackFlow {
-        val ref = rtdb.getReference("status/${'$'}userId/state")
+        val ref = rtdb.getReference("status/$userId/state")
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 trySend(snapshot.getValue(String::class.java) == "online")

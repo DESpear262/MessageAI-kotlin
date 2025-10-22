@@ -93,7 +93,17 @@ fun MessageAiAppRoot() {
                 composable("main") {
                     MainTabs(
                         onLogout = { vm.logout() },
-                        onOpenChat = { chatId -> navController.navigate("chat/$chatId") }
+                        onOpenChat = { chatId -> navController.navigate("chat/$chatId") },
+                        onCreateChat = { navController.navigate("createChat") }
+                    )
+                }
+                composable("createChat") {
+                    com.messageai.tactical.ui.main.CreateChatScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenChat = { chatId ->
+                            navController.popBackStack()
+                            navController.navigate("chat/$chatId")
+                        }
                     )
                 }
                 composable(

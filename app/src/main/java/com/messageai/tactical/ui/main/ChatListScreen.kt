@@ -25,12 +25,11 @@ import com.messageai.tactical.data.remote.PresenceService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit) {
+fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit, onCreateChat: () -> Unit) {
     val vm: ChatListViewModel = hiltViewModel()
     val chats by vm.chats.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
-    var query by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { vm.startChatSubscription(scope) }
@@ -42,26 +41,9 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit) {
                 actions = { TextButton(onClick = onLogout) { Text("Logout") } }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                scope.launch {
-                    try {
-                        vm.startChat(query, onOpenChat) { error = it }
-                        error = null
-                    } catch (e: Exception) {
-                        error = e.message ?: "Something went wrong starting the chat"
-                    }
-                }
-            }) { Text("+") }
-        }
+        floatingActionButton = { FloatingActionButton(onClick = onCreateChat) { Text("+") } }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(12.dp)) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("Email or screen name") },
-                modifier = Modifier.fillMaxWidth()
-            )
             if (!error.isNullOrEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(error!!, color = MaterialTheme.colorScheme.error)
@@ -116,31 +98,4 @@ class ChatListViewModel @Inject constructor(
     fun userOnline(uid: String): kotlinx.coroutines.flow.Flow<Boolean> = presence.isUserOnline(uid)
 
     fun startChatSubscription(scope: kotlinx.coroutines.CoroutineScope) { chatService.subscribeMyChats(scope) }
-
-    suspend fun startChat(input: String, onOpenChat: (String) -> Unit, onError: (String) -> Unit) {
-        val me = auth.currentUser ?: return onError("Not signed in")
-        val myName = me.displayName ?: me.email ?: "Me"
-        val normalized = input.trim()
-        if (normalized.isEmpty()) return onError("Enter email or screen name")
-
-        val other = lookupUser(normalized) ?: return onError("We couldn't find that user")
-        val otherUid = other["uid"] as String
-        val otherName = (other["displayName"] as? String) ?: (other["email"] as? String) ?: otherUid
-
-        val chatId = chatService.ensureDirectChat(
-            myUid = me.uid,
-            otherUid = otherUid,
-            myName = myName,
-            otherName = otherName
-        )
-        onOpenChat(chatId)
-    }
-
-    private suspend fun lookupUser(q: String): Map<String, Any>? {
-        val byEmail = firestore.collection("users").whereEqualTo("email", q).limit(1).get().await()
-        if (!byEmail.isEmpty) return byEmail.documents.first().data
-        val byName = firestore.collection("users").whereEqualTo("displayNameLower", q.lowercase()).limit(1).get().await()
-        if (!byName.isEmpty) return byName.documents.first().data
-        return null
-    }
 }

@@ -22,20 +22,20 @@ class RtdbPresenceService @Inject constructor(
 ) {
     fun goOnline() {
         val uid = auth.currentUser?.uid ?: return
-        val ref = rtdb.getReference("status/${'$'}uid")
+        val ref = rtdb.getReference("status/$uid")
         ref.onDisconnect().setValue(mapOf("state" to "offline", "last_changed" to System.currentTimeMillis()))
         ref.setValue(mapOf("state" to "online", "last_changed" to System.currentTimeMillis()))
     }
 
     fun goOffline() {
         val uid = auth.currentUser?.uid ?: return
-        val ref = rtdb.getReference("status/${'$'}uid")
+        val ref = rtdb.getReference("status/$uid")
         ref.setValue(mapOf("state" to "offline", "last_changed" to System.currentTimeMillis()))
     }
 
     fun setTyping(chatId: String, typing: Boolean, scope: CoroutineScope) {
         val uid = auth.currentUser?.uid ?: return
-        val ref = rtdb.getReference("typing/${'$'}chatId/${'$'}uid")
+        val ref = rtdb.getReference("typing/$chatId/$uid")
         scope.launch(Dispatchers.IO) {
             ref.setValue(typing)
             if (typing) {
