@@ -20,11 +20,10 @@ import javax.inject.Singleton
 
 @Singleton
 class MessageRepository @Inject constructor(
-    private val db: AppDatabase,
+    val db: AppDatabase,
     private val service: MessageService
 ) {
     @OptIn(ExperimentalPagingApi::class)
-    /** Returns a paged stream of messages for a chat, newest-first. */
     fun messages(chatId: String, pageSize: Int = 50): Flow<PagingData<MessageEntity>> {
         return Pager(
             config = PagingConfig(pageSize = pageSize, enablePlaceholders = false),

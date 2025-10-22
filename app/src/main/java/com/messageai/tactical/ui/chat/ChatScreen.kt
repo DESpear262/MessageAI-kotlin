@@ -10,15 +10,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.firebase.auth.FirebaseAuth
-import com.messageai.tactical.data.db.ChatDao
+import com.messageai.tactical.data.db.MessageEntity
 import com.messageai.tactical.data.remote.MessageRepository
 import com.messageai.tactical.data.remote.MessageService
+import com.messageai.tactical.data.remote.SendWorker
 import com.messageai.tactical.data.remote.model.MessageDoc
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.map
@@ -36,6 +38,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     var input by remember { mutableStateOf(TextFieldValue("")) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -83,7 +86,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                 Button(onClick = {
                     val text = input.text.trim()
                     if (text.isNotEmpty()) {
-                        scope.launch { vm.send(chatId, text) }
+                        scope.launch { vm.send(chatId, text, context) }
                         input = TextFieldValue("")
                     }
                 }) { Text("Send") }
@@ -96,27 +99,33 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
 class ChatViewModel @Inject constructor(
     private val repo: MessageRepository,
     private val svc: MessageService,
-    private val auth: FirebaseAuth,
-    private val chatDao: ChatDao
+    private val auth: FirebaseAuth
 ) : androidx.lifecycle.ViewModel() {
     val myUid: String? get() = auth.currentUser?.uid
 
     fun messages(chatId: String) = repo.messages(chatId)
 
-    fun chatTitle(chatId: String) = chatDao.getChat(chatId).map { it?.name ?: "Chat" }
+    fun chatTitle(chatId: String) = repo.db.chatDao().getChat(chatId).map { it?.name ?: "Chat" }
 
-    suspend fun send(chatId: String, text: String) {
+    suspend fun send(chatId: String, text: String, context: android.content.Context) {
         val me = auth.currentUser ?: return
         val id = UUID.randomUUID().toString()
-        val doc = MessageDoc(
+        val entity = MessageEntity(
             id = id,
             chatId = chatId,
             senderId = me.uid,
             text = text,
-            clientTimestamp = System.currentTimeMillis(),
+            imageUrl = null,
+            timestamp = System.currentTimeMillis(),
             status = "SENDING",
-            localOnly = false
+            readBy = "[]",
+            deliveredBy = "[]",
+            synced = false,
+            createdAt = System.currentTimeMillis()
         )
-        svc.sendMessage(doc)
+        // Optimistic local insert
+        repo.db.messageDao().upsert(entity)
+        // Enqueue background send
+        SendWorker.enqueue(context, id, chatId, me.uid, text, entity.timestamp)
     }
 }

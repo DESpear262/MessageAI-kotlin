@@ -10,6 +10,7 @@ package com.messageai.tactical.di
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
@@ -26,7 +27,14 @@ object FirebaseModule {
 
     @Provides
     @Singleton
-    fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+    fun provideFirestore(): FirebaseFirestore {
+        val db = FirebaseFirestore.getInstance()
+        val settings = FirebaseFirestoreSettings.Builder()
+            .setPersistenceEnabled(true)
+            .build()
+        db.firestoreSettings = settings
+        return db
+    }
 
     @Provides
     @Singleton
@@ -34,5 +42,5 @@ object FirebaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(): FirebaseDatabase = FirebaseDatabase.getInstance()
+    fun provideRtdb(): FirebaseDatabase = FirebaseDatabase.getInstance()
 }

@@ -156,6 +156,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // ----- Paging (for RemoteMediator superclass) -----
     implementation("androidx.paging:paging-runtime-ktx:3.3.2")

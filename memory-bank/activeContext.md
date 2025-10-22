@@ -1,25 +1,17 @@
 # Active Context
 
 ## Current Focus
-- Preparing Block I: Offline support & sync/queue (optimistic send via WorkManager, retries, network handling).
+- Block I: Offline support & sync/queue (WorkManager-based send pipeline).
 
 ## Recent Changes
-- 1:1 chat list with real-time subscription and navigation.
-- Chat title now shows other participant’s screen name (Room-backed).
-- Chat creation by email/screen name; self-chat labeled "Note to self".
-- Chat screen: newest-at-top, styled bubbles (mine right/blue, other left/gray), input bar, back button.
-- Landing page top bar with Logout.
+- Firestore offline persistence enabled in DI.
+- SendWorker added with exponential backoff (2s → 5m), network + battery constraints, idempotent merge writes.
+- Chat send now enqueues background work and inserts local SENDING entity.
 
 ## Next Steps
-- Implement send queue with WorkManager (OneTime + backoff), mark states SENDING→SENT→DELIVERED→READ.
-- Firestore offline persistence toggle; network monitoring for graceful reconnects.
-- Ensure lastMessage updates on send and list previews are consistent.
-
-## Decisions & Considerations
-- Room is source of truth; Firestore listeners write-through.
-- Read receipts only for fully visible messages; deliveredBy on receive.
+- Re-scan queue on app start to enqueue missing work; transition states SENDING→SENT and delivered/read.
+- Network callback kick (optional) to hasten retries; lastMessage updates on send.
 
 ## Risks
-- Write volume for read receipts; keep debounced.
-- Index requirements for combined queries as features increase.
+- Ensure retry limits and error surfacing for permanent failures.
 
