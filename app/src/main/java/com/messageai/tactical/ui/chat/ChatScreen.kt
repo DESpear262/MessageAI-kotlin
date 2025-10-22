@@ -90,7 +90,9 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     // Handle camera launch after permission granted
     LaunchedEffect(shouldLaunchCamera) {
         if (shouldLaunchCamera) {
-            val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+            // Create file in cache/images/ subdirectory to match file_paths.xml
+            val cacheImagesDir = File(context.cacheDir, "images").apply { mkdirs() }
+            val imageFile = File(cacheImagesDir, "camera_${System.currentTimeMillis()}.jpg")
             val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
@@ -199,8 +201,9 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         androidx.core.content.ContextCompat.checkSelfPermission(
                             context, permission
                         ) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                            // Permission already granted
-                            val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+                            // Permission already granted - create file in cache/images/ subdirectory
+                            val cacheImagesDir = File(context.cacheDir, "images").apply { mkdirs() }
+                            val imageFile = File(cacheImagesDir, "camera_${System.currentTimeMillis()}.jpg")
                             val uri = FileProvider.getUriForFile(
                                 context,
                                 "${context.packageName}.fileprovider",
