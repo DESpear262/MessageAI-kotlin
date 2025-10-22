@@ -25,9 +25,9 @@ import com.messageai.tactical.ui.chat.ChatScreen
 import com.messageai.tactical.ui.main.MainTabs
 import com.messageai.tactical.ui.theme.MessageAITheme
 import com.messageai.tactical.notifications.NotificationCenter
+import com.messageai.tactical.util.FcmTokenHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
 
 @Composable
 /** Root composable establishing theme, nav controller, and routes. */
@@ -75,22 +75,7 @@ fun MessageAiAppRoot() {
                 if (isAuthenticated) {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
-                        android.util.Log.d("AppRoot", "Requesting FCM token for user ${user.uid}")
-                        FirebaseMessaging.getInstance().token
-                            .addOnSuccessListener { token ->
-                                android.util.Log.d("AppRoot", "FCM token received: $token")
-                                FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                                    .update("fcmToken", token)
-                                    .addOnSuccessListener {
-                                        android.util.Log.d("AppRoot", "FCM token saved to Firestore for user ${user.uid}")
-                                    }
-                                    .addOnFailureListener { e ->
-                                        android.util.Log.e("AppRoot", "Failed to save FCM token to Firestore", e)
-                                    }
-                            }
-                            .addOnFailureListener { e ->
-                                android.util.Log.e("AppRoot", "Failed to get FCM token", e)
-                            }
+                        FcmTokenHelper.updateTokenForUser(user.uid, FirebaseFirestore.getInstance())
                     } else {
                         android.util.Log.w("AppRoot", "No user logged in, skipping FCM token registration")
                     }

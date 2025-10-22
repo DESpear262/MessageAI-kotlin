@@ -16,6 +16,7 @@ import com.messageai.tactical.data.db.MessageDao
 import com.messageai.tactical.data.remote.model.ChatDoc
 import com.messageai.tactical.data.remote.model.LastMessage
 import com.messageai.tactical.data.remote.model.ParticipantInfo
+import com.messageai.tactical.util.UnreadHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -126,15 +127,7 @@ class ChatService @Inject constructor(
                                         
                                         // Recalculate unread count for this chat
                                         val allMessages = messageDao.getAllMessagesForChat(chatId)
-                                        val unreadMessages = allMessages.filter { msg ->
-                                            msg.senderId != me && run {
-                                                val readByList = try {
-                                                    kotlinx.serialization.json.Json.decodeFromString<List<String>>(msg.readBy)
-                                                } catch (_: Exception) { emptyList() }
-                                                !readByList.contains(me)
-                                            }
-                                        }
-                                        val unreadCount = unreadMessages.size
+                                        val unreadCount = UnreadHelper.calculateUnreadCount(allMessages, me)
                                         android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [REAL-TIME UPDATE]")
                                         chatDao.updateUnread(chatId, unreadCount)
                                     }
@@ -149,15 +142,7 @@ class ChatService @Inject constructor(
                 entities.forEach { chatEntity ->
                     val chatId = chatEntity.id
                     val allMessages = messageDao.getAllMessagesForChat(chatId)
-                    val unreadMessages = allMessages.filter { msg ->
-                        msg.senderId != me && run {
-                            val readByList = try {
-                                kotlinx.serialization.json.Json.decodeFromString<List<String>>(msg.readBy)
-                            } catch (_: Exception) { emptyList() }
-                            !readByList.contains(me)
-                        }
-                    }
-                    val unreadCount = unreadMessages.size
+                    val unreadCount = UnreadHelper.calculateUnreadCount(allMessages, me)
                     android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [INITIAL]")
                     chatDao.updateUnread(chatId, unreadCount)
                 }

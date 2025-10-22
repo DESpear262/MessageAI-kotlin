@@ -6,14 +6,18 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.content.pm.PackageManager
+import android.Manifest
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.messageai.tactical.MainActivity
 import com.messageai.tactical.R
+import com.messageai.tactical.util.FcmTokenHelper
 
 /** Firebase Messaging service: updates token and handles incoming messages. */
 class MessagingService : FirebaseMessagingService() {
@@ -21,11 +25,7 @@ class MessagingService : FirebaseMessagingService() {
         android.util.Log.d("MessagingService", "New FCM token: $token")
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid != null) {
-            FirebaseFirestore.getInstance()
-                .collection("users").document(uid)
-                .update("fcmToken", token)
-                .addOnSuccessListener { android.util.Log.d("MessagingService", "FCM token updated for user $uid") }
-                .addOnFailureListener { e -> android.util.Log.e("MessagingService", "Failed to update FCM token", e) }
+            FcmTokenHelper.updateTokenForUser(uid, FirebaseFirestore.getInstance())
         }
     }
 
@@ -84,10 +84,26 @@ class MessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
+        // Android 13+ requires POST_NOTIFICATIONS runtime permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                android.util.Log.w("MessagingService", "POST_NOTIFICATIONS not granted; skipping system notification")
+                return
+            }
+        }
+
         with(NotificationManagerCompat.from(this)) {
             val notificationId = chatId?.hashCode() ?: (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
-            notify(notificationId, builder.build())
-            android.util.Log.d("MessagingService", "Notification shown with ID: $notificationId")
+            try {
+                notify(notificationId, builder.build())
+                android.util.Log.d("MessagingService", "Notification shown with ID: $notificationId")
+            } catch (se: SecurityException) {
+                android.util.Log.w("MessagingService", "SecurityException notifying: ${se.message}")
+            }
         }
     }
 

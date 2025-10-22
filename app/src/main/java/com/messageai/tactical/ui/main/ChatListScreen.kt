@@ -1,6 +1,11 @@
+/**
+ * MessageAI – Chat list screen UI and view model.
+ *
+ * Displays the user's active chats with presence indicators, unread badges,
+ * and last message previews. Subscribes to real-time Firestore chat updates.
+ */
 package com.messageai.tactical.ui.main
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,13 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 import com.google.firebase.auth.FirebaseAuth
@@ -22,6 +24,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.messageai.tactical.data.db.ChatEntity
 import com.messageai.tactical.data.remote.ChatService
 import com.messageai.tactical.data.remote.PresenceService
+import com.messageai.tactical.ui.components.PresenceDot
+import com.messageai.tactical.util.ParticipantHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,23 +59,10 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit, onCreateC
 }
 
 @Composable
-private fun PresenceDot(isOnline: Boolean) {
-    val color = if (isOnline) Color(0xFF2ECC71) else Color(0xFFB0B0B0)
-    Box(
-        modifier = Modifier
-            .size(10.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(color)
-    )
-}
-
-@Composable
 private fun ChatRow(vm: ChatListViewModel, chat: ChatEntity, onClick: () -> Unit) {
     val myUid = vm.meUid ?: ""
     val otherUid = remember(chat.participants, myUid) {
-        // participants is stored as JSON array string
-        val list = try { kotlinx.serialization.json.Json.decodeFromString<List<String>>(chat.participants) } catch (_: Exception) { emptyList() }
-        list.firstOrNull { it != myUid } ?: myUid
+        ParticipantHelper.getOtherParticipant(chat.participants, myUid)
     }
     val online by vm.userOnline(otherUid).collectAsState(initial = false)
 

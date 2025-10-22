@@ -1,5 +1,13 @@
+/**
+ * MessageAI – Chat screen UI and view model.
+ *
+ * Displays a paginated message list with real-time updates, optimistic sending,
+ * image attachments (gallery + camera), and presence indicators. Handles message
+ * lifecycle including Room persistence, WorkManager queuing, and Firestore sync.
+ */
 package com.messageai.tactical.ui.chat
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,7 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
@@ -35,6 +42,9 @@ import com.messageai.tactical.data.remote.MessageRepository
 import com.messageai.tactical.data.remote.MessageService
 import com.messageai.tactical.data.remote.PresenceService
 import com.messageai.tactical.data.remote.model.MessageDoc
+import com.messageai.tactical.ui.components.PresenceDot
+import com.messageai.tactical.util.CameraHelper
+import com.messageai.tactical.util.ParticipantHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -90,14 +100,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     // Handle camera launch after permission granted
     LaunchedEffect(shouldLaunchCamera) {
         if (shouldLaunchCamera) {
-            // Create file in cache/images/ subdirectory to match file_paths.xml
-            val cacheImagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-            val imageFile = File(cacheImagesDir, "camera_${System.currentTimeMillis()}.jpg")
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                imageFile
-            )
+            val (_, uri) = CameraHelper.createImageFile(context)
             cameraImageUri = uri
             cameraLauncher.launch(uri)
             shouldLaunchCamera = false
@@ -201,14 +204,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         androidx.core.content.ContextCompat.checkSelfPermission(
                             context, permission
                         ) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                            // Permission already granted - create file in cache/images/ subdirectory
-                            val cacheImagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-                            val imageFile = File(cacheImagesDir, "camera_${System.currentTimeMillis()}.jpg")
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                imageFile
-                            )
+                            // Permission already granted - create file and launch camera
+                            val (_, uri) = CameraHelper.createImageFile(context)
                             cameraImageUri = uri
                             cameraLauncher.launch(uri)
                         }
@@ -239,17 +236,6 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     }
 }
 
-@Composable
-private fun PresenceDot(isOnline: Boolean) {
-    val color = if (isOnline) Color(0xFF2ECC71) else Color(0xFFB0B0B0)
-    Box(
-        modifier = Modifier
-            .size(10.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(color)
-    )
-}
-
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val repo: MessageRepository,
@@ -268,8 +254,7 @@ class ChatViewModel @Inject constructor(
 
     fun otherParticipant(chatId: String) = chatDao.getChat(chatId).map { entity ->
         entity?.let {
-            val list = try { kotlinx.serialization.json.Json.decodeFromString<List<String>>(it.participants) } catch (_: Exception) { emptyList() }
-            list.firstOrNull { uid -> uid != myUid } ?: myUid
+            ParticipantHelper.getOtherParticipant(it.participants, myUid ?: "")
         }
     }
 
