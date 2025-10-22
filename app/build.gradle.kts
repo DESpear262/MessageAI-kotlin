@@ -136,10 +136,12 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.navigation:navigation-compose:2.8.1")
     implementation("androidx.paging:paging-compose:3.3.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
 
     // Desugaring (if you use java.time, etc.)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")

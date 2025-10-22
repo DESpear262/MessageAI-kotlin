@@ -71,12 +71,20 @@ class MessageListener @Inject constructor(
                 android.util.Log.d("MessageListener", "Upserting ${entities.size} messages to Room")
                 db.messageDao().upsertAll(entities)
                 
+                // Update unread count for this chat
+                val myUid = auth.currentUser?.uid
+                if (myUid != null) {
+                    val unreadMessages = entities.filter { entity ->
+                        entity.senderId != myUid && !entity.readBy.contains(myUid)
+                    }
+                    db.chatDao().updateUnread(chatId, unreadMessages.size)
+                }
+                
                 // Notify UI to refresh
                 android.util.Log.d("MessageListener", "Notifying UI of data change")
                 onDataChanged?.invoke()
 
                 // deliveredBy: mark delivery for messages I received (not authored by me)
-                val myUid = auth.currentUser?.uid
                 if (myUid != null) {
                     docs.filter { it.senderId != myUid && !it.deliveredBy.contains(myUid) }.forEach { m ->
                         col.document(m.id).update("deliveredBy", FieldValue.arrayUnion(myUid))

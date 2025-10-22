@@ -79,7 +79,20 @@ private fun ChatRow(vm: ChatListViewModel, chat: ChatEntity, onClick: () -> Unit
         leadingContent = { PresenceDot(online) },
         headlineContent = { Text(chat.name ?: "Chat") },
         supportingContent = { Text(chat.lastMessage ?: "") },
-        trailingContent = { Text(chat.lastMessageTime?.let { "" } ?: "") },
+        trailingContent = { 
+            if (chat.unreadCount > 0) {
+                Badge(
+                    modifier = Modifier.size(24.dp),
+                    containerColor = MaterialTheme.colorScheme.error
+                ) {
+                    Text(
+                        text = if (chat.unreadCount > 99) "99+" else chat.unreadCount.toString(),
+                        color = MaterialTheme.colorScheme.onError,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        },
         modifier = Modifier.clickable(onClick = onClick)
     )
 }

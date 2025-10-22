@@ -39,6 +39,22 @@ fun MessageAiAppRoot() {
             val isAuthenticated by vm.isAuthenticated.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+            // Track app lifecycle for presence
+            DisposableEffect(lifecycleOwner, isAuthenticated) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    when (event) {
+                        androidx.lifecycle.Lifecycle.Event.ON_RESUME -> vm.onAppForeground()
+                        androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> vm.onAppBackground()
+                        else -> {}
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
 
             LaunchedEffect(Unit) {
                 NotificationCenter.inAppMessages.collect { msg ->
