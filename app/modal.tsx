@@ -1,9 +1,15 @@
+/**
+ * MessageAI – Modal screen.
+ *
+ * Simple modal route example using Expo Router.
+ */
 import { Link } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
+/** Simple modal content. */
 export default function ModalScreen() {
   return (
     <ThemedView style={styles.container}>

@@ -1,3 +1,9 @@
+/**
+ * MessageAI – ThemedText.
+ *
+ * Text component that adapts color to the current theme and supports
+ * a handful of semantic variants.
+ */
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -8,6 +14,7 @@ export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
 };
 
+/** Themed text element with semantic variants. */
 export function ThemedText({
   style,
   lightColor,

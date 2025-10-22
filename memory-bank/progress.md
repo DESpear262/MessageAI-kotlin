@@ -1,18 +1,28 @@
 # Progress
 
 ## Status Overview
-- Documentation initialized (Memory Bank) and .gitignore configured.
+- Block A: Skeleton (flavors, Hilt, Compose, Room, Auth) — done.
+- Block C: Firestore models/paths, LWW utils, mappers, services — done.
+- Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository — done.
+- Block E: Realtime listeners, delivered/read receipts, RTDB presence/typing, 1:1 chat list + chat UI — done.
+- Block F: Group chat — done (unified list, group create/rename, sender attribution per bubble, presence header).
+- Block G: Media (images) — done (gallery + camera, upload, inline render, prefetch).
+- Block I: Offline support & send queue — done.
+- Block J: Presence indicator dots — done.
 
 ## What Works
-- Project documentation foundation complete.
+- Text send pipeline: optimistic local insert, background send via SendWorker (constraints + backoff), idempotent Firestore writes, lastMessage updates.
+- Image pipeline: pick/capture → cache copy → resize/compress → Storage upload (with metadata: chatId/messageId/senderId) → patch message with `imageUrl` and `status=SENT`; `lastMessage` updated.
+- UI: Inline images via Coil with correct sizing/contentScale and prefetch; simple pending preview and send.
+- WorkManager + Hilt WorkerFactory configured; workers resilient to restarts.
+- Presence dots (green online, gray offline) using RTDB `status/{uid}`.
 
-## What’s Left (MVP)
-- Block A–D: project skeleton, Firebase, Hilt, auth screens, Room schema.
-- Block E–I: 1:1 chat, queue, presence/typing, states, offline sync.
-- Block F–H: groups, media, notifications.
-- Block K–L: testing matrix and packaging.
+## What’s Next
+- Finalize Storage/Firestore rules; integrate shared text policy.
+- Optional: upload progress %, oversize warning UX, full-screen preview.
+- Group typing indicators aggregation (optional).
 
 ## Known Issues / Notes
-- Notifications robust background handling deferred to post-MVP if needed.
-- Image compression optimization is not planned in MVP.
+- Indeterminate progress for uploads (acceptable for MVP).
+- Security rules pending coordination; test media strictly in dev until policies land.
 

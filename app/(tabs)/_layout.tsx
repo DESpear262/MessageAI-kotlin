@@ -1,3 +1,8 @@
+/**
+ * MessageAI – Tabs layout.
+ *
+ * Defines the tab navigator with icons, colors, and screens.
+ */
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -6,6 +11,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+/** Tab navigator for the main app areas. */
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 

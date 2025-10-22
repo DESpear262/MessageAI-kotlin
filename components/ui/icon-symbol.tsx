@@ -1,4 +1,9 @@
-// Fallback for using MaterialIcons on Android and web.
+/**
+ * MessageAI – IconSymbol (Android/Web fallback).
+ *
+ * Uses Material Icons to emulate SF Symbols on Android and web. iOS has a
+ * platform-specific implementation in `icon-symbol.ios.tsx`.
+ */
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { SymbolWeight, SymbolViewProps } from 'expo-symbols';

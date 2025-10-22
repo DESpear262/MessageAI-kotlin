@@ -1,23 +1,23 @@
 # Active Context
 
 ## Current Focus
-- Initialize Android Kotlin project skeleton; Firebase setup; DI with Hilt.
-- Define data models; Room schema; Firestore wiring.
+- Block F: Groups completed (unified chat list, name attribution, presence in header). Block G (Media) complete; awaiting rules integration.
 
 ## Recent Changes
-- Memory Bank initialized from PRD, task plan, and architecture diagram.
-- .gitignore added for Android/Kotlin and Node/Expo artifacts.
+- Gallery and camera attach added (Android Photo Picker + TakePicture with FileProvider authority `${applicationId}.fileprovider`).
+- Image pipeline:
+  - Copy picked/captured URI to app cache for retry durability
+  - Resize to max edge 2048px and JPEG compress at ~85 quality
+  - EXIF stripped by re-encode; HEIC decoded via ImageDecoder on API 28+
+  - Upload to Storage at `chat-media/{chatId}/{messageId}.jpg` with metadata (contentType `image/jpeg`, custom: `chatId`, `messageId`, `senderId`); patch message doc `imageUrl` + `status=SENT` and `lastMessage`.
+- UI: Inline image rendering with Coil fixed (sizing/contentScale), prefetch for visible + next items; simple pre-send preview row (cancel/send) with indeterminate progress UX.
+- Workers: `SendWorker` creates/merges message doc (SENDING for image-first); `ImageUploadWorker` uploads and patches URL/status; WorkManager configured with HiltWorkerFactory; senderId plumbed through worker.
 
 ## Next Steps
-- Stand up auth flows (register/login/reset) and persistent auth state.
-- Implement local DB entities/DAOs and repository layer.
-- Wire Firestore listeners and optimistic send pipeline with WorkManager queue.
-
-## Decisions & Considerations
-- Use Material3; keep functions <75 lines and files <750 lines as per project rules.
-- Timestamp-based LWW for conflict resolution in MVP.
+- Integrate finalized Storage/Firestore rules (pending other agent).
+- Optional polish: upload progress %, oversize warning, and full preview.
+- Validate presence/typing aggregation for groups.
 
 ## Risks
-- Foreground-only notifications in MVP; background behavior varies by OEM.
-- Network variability; ensure robust retry and idempotency in queue.
+- Large images can lead to longer uploads (indeterminate spinner only for MVP).
 

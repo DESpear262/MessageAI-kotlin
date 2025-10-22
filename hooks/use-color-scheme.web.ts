@@ -1,3 +1,9 @@
+/**
+ * MessageAI – useColorScheme (web hydration-safe).
+ *
+ * Web-only hook that delays returning the runtime color scheme until hydration
+ * to avoid mismatches with static output.
+ */
 import { useEffect, useState } from 'react';
 import { useColorScheme as useRNColorScheme } from 'react-native';
 
