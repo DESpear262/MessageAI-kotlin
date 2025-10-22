@@ -39,12 +39,28 @@ fun MessageAiAppRoot() {
             val isAuthenticated by vm.isAuthenticated.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+            // Track app lifecycle for presence
+            DisposableEffect(lifecycleOwner, isAuthenticated) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    when (event) {
+                        androidx.lifecycle.Lifecycle.Event.ON_RESUME -> vm.onAppForeground()
+                        androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> vm.onAppBackground()
+                        else -> {}
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
 
             LaunchedEffect(Unit) {
                 NotificationCenter.inAppMessages.collect { msg ->
                     // Show in-app banner; on action tap, navigate to chat
                     val result = snackbarHostState.showSnackbar(
-                        message = "${'$'}{msg.title}: ${'$'}{msg.preview}",
+                        message = "${msg.title}: ${msg.preview}",
                         actionLabel = "Open",
                         withDismissAction = true
                     )
@@ -59,10 +75,24 @@ fun MessageAiAppRoot() {
                 if (isAuthenticated) {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
-                        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                            FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                                .update("fcmToken", token)
-                        }
+                        android.util.Log.d("AppRoot", "Requesting FCM token for user ${user.uid}")
+                        FirebaseMessaging.getInstance().token
+                            .addOnSuccessListener { token ->
+                                android.util.Log.d("AppRoot", "FCM token received: $token")
+                                FirebaseFirestore.getInstance().collection("users").document(user.uid)
+                                    .update("fcmToken", token)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("AppRoot", "FCM token saved to Firestore for user ${user.uid}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("AppRoot", "Failed to save FCM token to Firestore", e)
+                                    }
+                            }
+                            .addOnFailureListener { e ->
+                                android.util.Log.e("AppRoot", "Failed to get FCM token", e)
+                            }
+                    } else {
+                        android.util.Log.w("AppRoot", "No user logged in, skipping FCM token registration")
                     }
                 }
             }

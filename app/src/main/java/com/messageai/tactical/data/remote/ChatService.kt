@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.messageai.tactical.data.db.ChatDao
+import com.messageai.tactical.data.db.MessageDao
 import com.messageai.tactical.data.remote.model.ChatDoc
 import com.messageai.tactical.data.remote.model.LastMessage
 import com.messageai.tactical.data.remote.model.ParticipantInfo
@@ -26,10 +27,12 @@ import javax.inject.Singleton
 class ChatService @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val chatDao: ChatDao
+    private val chatDao: ChatDao,
+    private val messageDao: MessageDao
 ) {
     private val chats = firestore.collection(FirestorePaths.CHATS)
     private var reg: ListenerRegistration? = null
+    private val messageListeners = mutableMapOf<String, ListenerRegistration>()
 
     suspend fun ensureDirectChat(myUid: String, otherUid: String, myName: String, otherName: String): String {
         val chatId = FirestorePaths.directChatId(myUid, otherUid)
@@ -92,6 +95,9 @@ class ChatService @Inject constructor(
 
     fun subscribeMyChats(scope: CoroutineScope) {
         reg?.remove()
+        messageListeners.values.forEach { it.remove() }
+        messageListeners.clear()
+        
         val me = auth.currentUser?.uid ?: return
         reg = chats.whereArrayContains("participants", me).addSnapshotListener { snap, _ ->
             if (snap == null) return@addSnapshotListener
@@ -99,6 +105,62 @@ class ChatService @Inject constructor(
                 val entities = snap.documents.mapNotNull { it.toObject(ChatDoc::class.java) }
                     .map { Mapper.chatDocToEntityForUser(it, me) }
                 chatDao.upsertAll(entities)
+                
+                // Subscribe to messages for each chat to enable real-time unread updates
+                entities.forEach { chatEntity ->
+                    val chatId = chatEntity.id
+                    if (!messageListeners.containsKey(chatId)) {
+                        android.util.Log.d("ChatService", "Starting message listener for chat $chatId")
+                        val messageListener = chats.document(chatId)
+                            .collection(FirestorePaths.MESSAGES)
+                            .addSnapshotListener { msgSnap, _ ->
+                                if (msgSnap == null) return@addSnapshotListener
+                                scope.launch(Dispatchers.IO) {
+                                    // Sync messages to Room
+                                    val messageEntities = msgSnap.documents.mapNotNull { 
+                                        it.toObject(com.messageai.tactical.data.remote.model.MessageDoc::class.java)
+                                    }.map { Mapper.messageDocToEntity(it) }
+                                    
+                                    if (messageEntities.isNotEmpty()) {
+                                        messageDao.upsertAll(messageEntities)
+                                        
+                                        // Recalculate unread count for this chat
+                                        val allMessages = messageDao.getAllMessagesForChat(chatId)
+                                        val unreadMessages = allMessages.filter { msg ->
+                                            msg.senderId != me && run {
+                                                val readByList = try {
+                                                    kotlinx.serialization.json.Json.decodeFromString<List<String>>(msg.readBy)
+                                                } catch (_: Exception) { emptyList() }
+                                                !readByList.contains(me)
+                                            }
+                                        }
+                                        val unreadCount = unreadMessages.size
+                                        android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [REAL-TIME UPDATE]")
+                                        chatDao.updateUnread(chatId, unreadCount)
+                                    }
+                                }
+                            }
+                        messageListeners[chatId] = messageListener
+                    }
+                }
+                
+                // Initial unread count calculation
+                android.util.Log.d("ChatService", "Calculating initial unread counts for ${entities.size} chats")
+                entities.forEach { chatEntity ->
+                    val chatId = chatEntity.id
+                    val allMessages = messageDao.getAllMessagesForChat(chatId)
+                    val unreadMessages = allMessages.filter { msg ->
+                        msg.senderId != me && run {
+                            val readByList = try {
+                                kotlinx.serialization.json.Json.decodeFromString<List<String>>(msg.readBy)
+                            } catch (_: Exception) { emptyList() }
+                            !readByList.contains(me)
+                        }
+                    }
+                    val unreadCount = unreadMessages.size
+                    android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [INITIAL]")
+                    chatDao.updateUnread(chatId, unreadCount)
+                }
             }
         }
     }
@@ -106,6 +168,8 @@ class ChatService @Inject constructor(
     fun stop() {
         reg?.remove()
         reg = null
+        messageListeners.values.forEach { it.remove() }
+        messageListeners.clear()
     }
 
     suspend fun updateLastMessage(chatId: String, text: String?, imageUrl: String?, senderId: String) {

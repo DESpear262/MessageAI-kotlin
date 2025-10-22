@@ -71,12 +71,29 @@ class MessageListener @Inject constructor(
                 android.util.Log.d("MessageListener", "Upserting ${entities.size} messages to Room")
                 db.messageDao().upsertAll(entities)
                 
+                // Update unread count for this chat - query ALL messages, not just snapshot
+                val myUid = auth.currentUser?.uid
+                if (myUid != null) {
+                    // Get ALL messages for this chat from Room
+                    val allMessages = db.messageDao().getAllMessagesForChat(chatId)
+                    val unreadMessages = allMessages.filter { entity ->
+                        entity.senderId != myUid && run {
+                            // Parse readBy JSON array
+                            val readByList = try {
+                                kotlinx.serialization.json.Json.decodeFromString<List<String>>(entity.readBy)
+                            } catch (_: Exception) { emptyList() }
+                            !readByList.contains(myUid)
+                        }
+                    }
+                    android.util.Log.d("MessageListener", "Unread count for chat $chatId: ${unreadMessages.size} (${allMessages.size} total messages in chat)")
+                    db.chatDao().updateUnread(chatId, unreadMessages.size)
+                }
+                
                 // Notify UI to refresh
                 android.util.Log.d("MessageListener", "Notifying UI of data change")
                 onDataChanged?.invoke()
 
                 // deliveredBy: mark delivery for messages I received (not authored by me)
-                val myUid = auth.currentUser?.uid
                 if (myUid != null) {
                     docs.filter { it.senderId != myUid && !it.deliveredBy.contains(myUid) }.forEach { m ->
                         col.document(m.id).update("deliveredBy", FieldValue.arrayUnion(myUid))
