@@ -9,15 +9,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.messageai.tactical.data.db.ChatEntity
 import com.messageai.tactical.data.remote.ChatService
-import kotlinx.coroutines.launch
-import javax.inject.Inject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatListScreen(onOpenChat: (String) -> Unit) {
+fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit) {
     val vm: ChatListViewModel = hiltViewModel()
     val chats by vm.chats.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
@@ -25,10 +29,29 @@ fun ChatListScreen(onOpenChat: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(Unit) {
+        vm.startChatSubscription(scope)
+    }
+
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Chats") },
+                actions = {
+                    TextButton(onClick = onLogout) { Text("Logout") }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                scope.launch { vm.startChat(query, onOpenChat) { error = it } }
+                scope.launch {
+                    try {
+                        vm.startChat(query, onOpenChat) { error = it }
+                        error = null
+                    } catch (e: Exception) {
+                        error = e.message ?: "Something went wrong starting the chat"
+                    }
+                }
             }) { Text("+") }
         }
     ) { padding ->
@@ -72,15 +95,17 @@ class ChatListViewModel @Inject constructor(
 ) : androidx.lifecycle.ViewModel() {
     val chats = chatDao.getChats()
 
+    fun startChatSubscription(scope: kotlinx.coroutines.CoroutineScope) {
+        chatService.subscribeMyChats(scope)
+    }
+
     suspend fun startChat(input: String, onOpenChat: (String) -> Unit, onError: (String) -> Unit) {
         val me = auth.currentUser ?: return onError("Not signed in")
         val myName = me.displayName ?: me.email ?: "Me"
         val normalized = input.trim()
         if (normalized.isEmpty()) return onError("Enter email or screen name")
 
-        val other = lookupUser(normalized) ?: run {
-            return onError("We couldn't find that user")
-        }
+        val other = lookupUser(normalized) ?: return onError("We couldn't find that user")
         val otherUid = other["uid"] as String
         val otherName = (other["displayName"] as? String) ?: (other["email"] as? String) ?: otherUid
 

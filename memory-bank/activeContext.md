@@ -1,22 +1,24 @@
 # Active Context
 
 ## Current Focus
-- Block E: Continue with optimistic send pipeline and message state transitions.
+- Preparing Block I: Offline support & sync/queue (optimistic send via WorkManager, retries, network handling).
 
 ## Recent Changes
-- Chat list added with FAB start-chat by email or screen name; user-friendly not-found.
-- User lookup supports `email` and `displayNameLower` (registration stores it).
-- Direct chat ensure sets `participantDetails`; self-chat named "Note to self".
-- Chat screen added with Paging3 messages (newest at top) and send box.
+- 1:1 chat list with real-time subscription and navigation.
+- Chat creation by email/screen name; self-chat labeled "Note to self".
+- Chat screen: newest-at-top, styled bubbles (mine right/blue, other left/gray), input bar, back button.
+- Landing page top bar with Logout.
 
 ## Next Steps
-- Optimistic send state transitions; lastMessage sync on send.
-- Top-of-list listener for newer messages and improved chat row previews.
+- Implement send queue with WorkManager (OneTime + backoff), mark states SENDING→SENT→DELIVERED→READ.
+- Firestore offline persistence toggle; network monitoring for graceful reconnects.
+- Ensure lastMessage updates on send and list previews are consistent.
 
 ## Decisions & Considerations
-- Self-chat allowed; avoid duplicate receive by treating as single-participant flow at UI.
-- Enforce/assume displayName uniqueness through `displayNameLower` for lookup.
+- Room is source of truth; Firestore listeners write-through.
+- Read receipts only for fully visible messages; deliveredBy on receive.
 
 ## Risks
-- Name collisions if two users share same normalized display name (can enforce uniqueness server-side later).
+- Write volume for read receipts; keep debounced.
+- Index requirements for combined queries as features increase.
 

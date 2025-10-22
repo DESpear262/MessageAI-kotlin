@@ -4,18 +4,17 @@
 - Block A: Skeleton (flavors, Hilt, Compose, Room, Auth) — done.
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.
 - Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository — done.
-- Block E (in progress): Listeners, delivery/read receipts, RTDB presence/typing; 1:1 chat list + start chat — partially complete.
+- Block E: Realtime listeners, delivered/read receipts, RTDB presence/typing, 1:1 chat list + chat UI — largely complete (optimistic send pipeline pending).
 
 ## What Works
-- Login/register/forgot flows; post-auth main shows chat list.
-- Start chat by email or screen name; creates/ensures direct chat with details.
-- Self-chat supported (chat labeled "Note to self").
-- Chat screen with newest-at-top and sending to Firestore; paging for history.
+- Login/register/forgot; logout in top bar.
+- Start chat by email/screen name; self-chat supported.
+- Real-time chat list sync; open chat; back to list.
+- Chat screen with styled bubbles, reverse order, and sending.
 
-## What’s Next (MVP)
-- Optimistic send state transitions; lastMessage updates on send and previews on list.
-- Top-of-list new message listener integration.
+## What’s Next
+- Block I: Offline support & send queue with retries; Firestore offline persistence; network handling; message state transitions.
 
 ## Known Issues / Notes
-- Display name uniqueness not enforced; using `displayNameLower` lookup.
+- Ensure Firestore indexes for timestamp ordering and any future composite queries.
 

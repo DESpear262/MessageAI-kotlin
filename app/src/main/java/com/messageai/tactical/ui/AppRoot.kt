@@ -15,8 +15,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.navArgument
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.messageai.tactical.ui.auth.AuthScreen
 import com.messageai.tactical.ui.auth.ForgotPasswordScreen
 import com.messageai.tactical.ui.auth.RegisterScreen
@@ -58,7 +58,7 @@ fun MessageAiAppRoot() {
                 composable("main") {
                     MainTabs(
                         onLogout = { vm.logout() },
-                        onOpenChat = { chatId -> navController.navigate("chat/${'$'}chatId") }
+                        onOpenChat = { chatId -> navController.navigate("chat/$chatId") }
                     )
                 }
                 composable(
@@ -66,7 +66,7 @@ fun MessageAiAppRoot() {
                     arguments = listOf(navArgument("chatId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
-                    ChatScreen(chatId = chatId)
+                    ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
                 }
             }
         }

@@ -1,5 +1,8 @@
 //App build file
 
+import org.gradle.internal.os.OperatingSystem
+
+
 plugins {
     id("com.android.application")
     kotlin("android")
@@ -136,6 +139,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.navigation:navigation-compose:2.8.1")
+    implementation("androidx.paging:paging-compose:3.3.2")
 
     // Desugaring (if you use java.time, etc.)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
@@ -152,22 +156,9 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
-    // If you sign in with Google:
-    // implementation("com.google.android.gms:play-services-auth:21.2.0")
-
-    // ----- Room (for AppDatabase) -----
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
 
     // ----- Paging (for RemoteMediator superclass) -----
     implementation("androidx.paging:paging-runtime-ktx:3.3.2")
-
-    // ----- Retrofit/OkHttp (for *Service classes if you use them) -----
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // ----- Coroutines -----
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
@@ -189,3 +180,37 @@ dependencies {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions.jvmTarget = "17"
 }
+
+// --- Run/Install helpers -----------------------------------------------------
+
+// ---- App IDs (adjust if yours differ)
+val devAppId = "com.messageai.tactical.dev"
+val prodAppId = "com.messageai.tactical"
+
+// Optional: choose a specific device with -Pdevice=<serial>
+// e.g. ./gradlew -Pdevice=emulator-5554 runDev
+val deviceSerial = (project.findProperty("device") as String?)?.trim()
+
+fun adbArgs(vararg more: String): List<String> {
+    // Build an adb command that optionally targets a specific device
+    return if (deviceSerial.isNullOrEmpty())
+        listOf("adb") + more
+    else
+        listOf("adb", "-s", deviceSerial) + more
+}
+
+tasks.register<Exec>("runDev") {
+    group = "deployment"
+    description = "Assemble, install, and launch the Dev Debug app on the connected emulator/device."
+    dependsOn("installDevDebug")
+    // Launch the default launcher Activity robustly with monkey (no need to know the Activity name)
+    commandLine(adbArgs("shell", "monkey", "-p", devAppId, "-c", "android.intent.category.LAUNCHER", "1"))
+}
+
+tasks.register<Exec>("runProd") {
+    group = "deployment"
+    description = "Assemble, install, and launch the Release app on the connected emulator/device."
+    dependsOn("installRelease")
+    commandLine(adbArgs("shell", "monkey", "-p", prodAppId, "-c", "android.intent.category.LAUNCHER", "1"))
+}
+

@@ -84,6 +84,20 @@ object Mapper {
         )
     }
 
+    // Friendly chat entity for a specific user (computes name)
+    fun chatDocToEntityForUser(doc: ChatDoc, myUid: String): ChatEntity {
+        val base = chatDocToEntity(doc)
+        val name = when {
+            doc.participants.size <= 1 -> "Note to self"
+            doc.participants.size == 2 -> {
+                val other = doc.participants.firstOrNull { it != myUid } ?: myUid
+                doc.participantDetails?.get(other)?.name ?: "Chat"
+            }
+            else -> doc.participantDetails?.values?.joinToString(", ") { it.name } ?: "Group"
+        }
+        return base.copy(name = name)
+    }
+
     /** Constructs a new [SendQueueEntity] for an outbound message. */
     fun newQueueItem(messageId: String, chatId: String): SendQueueEntity =
         SendQueueEntity(id = messageId, messageId = messageId, chatId = chatId, createdAt = System.currentTimeMillis())
