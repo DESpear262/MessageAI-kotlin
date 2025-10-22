@@ -59,6 +59,7 @@ class AuthViewModel @Inject constructor(
                             "uid" to user.uid,
                             "email" to (user.email ?: email),
                             "displayName" to displayName,
+                            "displayNameLower" to displayName.lowercase(),
                             "photoURL" to null,
                             "createdAt" to FieldValue.serverTimestamp(),
                             "lastSeen" to FieldValue.serverTimestamp(),

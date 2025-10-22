@@ -12,12 +12,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navArgument
 import androidx.navigation.compose.rememberNavController
 import com.messageai.tactical.ui.auth.AuthScreen
 import com.messageai.tactical.ui.auth.ForgotPasswordScreen
 import com.messageai.tactical.ui.auth.RegisterScreen
+import com.messageai.tactical.ui.chat.ChatScreen
 import com.messageai.tactical.ui.main.MainTabs
 import com.messageai.tactical.ui.theme.MessageAITheme
 
@@ -53,7 +56,17 @@ fun MessageAiAppRoot() {
                     ForgotPasswordScreen(onBack = { navController.popBackStack() })
                 }
                 composable("main") {
-                    MainTabs(onLogout = { vm.logout() })
+                    MainTabs(
+                        onLogout = { vm.logout() },
+                        onOpenChat = { chatId -> navController.navigate("chat/${'$'}chatId") }
+                    )
+                }
+                composable(
+                    route = "chat/{chatId}",
+                    arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+                    ChatScreen(chatId = chatId)
                 }
             }
         }

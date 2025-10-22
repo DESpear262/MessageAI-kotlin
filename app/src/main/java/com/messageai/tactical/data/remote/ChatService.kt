@@ -10,6 +10,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.messageai.tactical.data.remote.model.ChatDoc
 import com.messageai.tactical.data.remote.model.LastMessage
+import com.messageai.tactical.data.remote.model.ParticipantInfo
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,21 +21,24 @@ class ChatService @Inject constructor(
 ) {
     private val chats = firestore.collection(FirestorePaths.CHATS)
 
-    suspend fun ensureDirectChat(uidA: String, uidB: String): String {
-        val chatId = FirestorePaths.directChatId(uidA, uidB)
+    suspend fun ensureDirectChat(myUid: String, otherUid: String, myName: String, otherName: String): String {
+        val chatId = FirestorePaths.directChatId(myUid, otherUid)
         val docRef = chats.document(chatId)
         val snap = docRef.get().await()
         if (!snap.exists()) {
+            val participantDetails = mapOf(
+                myUid to ParticipantInfo(name = myName, photoUrl = null),
+                otherUid to ParticipantInfo(name = if (myUid == otherUid) "Note to self" else otherName, photoUrl = null)
+            )
             val doc = ChatDoc(
                 id = chatId,
-                participants = listOf(uidA, uidB),
-                participantDetails = null,
+                participants = listOf(myUid, otherUid),
+                participantDetails = participantDetails,
                 lastMessage = null,
                 metadata = null
             )
             docRef.set(doc).await()
         }
-        // touch updatedAt
         docRef.update("updatedAt", FieldValue.serverTimestamp()).await()
         return chatId
     }
