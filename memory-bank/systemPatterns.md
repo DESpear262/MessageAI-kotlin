@@ -21,6 +21,7 @@
 - Deterministic storage paths: `chat-media/{chatId}/{messageId}.jpg` using deterministic chat IDs and UUID message IDs.
 - Client processing: copy to app cache → decode (HEIC via ImageDecoder on API 28+) → resize to max edge 2048 → JPEG compress quality ~85 → EXIF stripped by re-encode.
 - Two-step message lifecycle: create/merge message as `SENDING` (no URL) → upload image → patch `imageUrl` and set `status=SENT`.
+- Metadata-based policy alignment: include `chatId`, `messageId`, `senderId` as Storage custom metadata for rule enforcement alongside path validation.
 - Prefetch strategy: prefetch image URLs for visible + next ~6 messages to smooth scroll.
 
 ## Data Model (essentials)
