@@ -1,17 +1,17 @@
 # Active Context
 
 ## Current Focus
-- Block I: Offline support & sync/queue (WorkManager-based send pipeline).
+- Block I completed: Offline support & send queue.
 
 ## Recent Changes
-- Firestore offline persistence enabled in DI.
-- SendWorker added with exponential backoff (2s → 5m), network + battery constraints, idempotent merge writes.
-- Chat send now enqueues background work and inserts local SENDING entity.
+- Firestore offline persistence enabled.
+- SendWorker with constraints/backoff; idempotent merge writes.
+- Optimistic local insert; enqueue per message; re-scan queue on app start.
+- State transitions SENDING→SENT; lastMessage updated on send.
 
 ## Next Steps
-- Re-scan queue on app start to enqueue missing work; transition states SENDING→SENT and delivered/read.
-- Network callback kick (optional) to hasten retries; lastMessage updates on send.
+- Proceed to next block (F: Groups, G: Media, or H: Notifications) per plan.
 
 ## Risks
-- Ensure retry limits and error surfacing for permanent failures.
+- Permanent failure surfacing UX (FAILED + retry) can be improved later.
 

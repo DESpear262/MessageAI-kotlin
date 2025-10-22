@@ -55,6 +55,40 @@ class ChatService @Inject constructor(
         return chatId
     }
 
+    /** Creates a group chat with the given members and optional name. */
+    suspend fun createGroupChat(name: String?, memberUids: List<String>): String {
+        val me = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
+        val unique = memberUids.distinct()
+        require(unique.size >= 3) { "Group requires at least 3 members" }
+        val docRef = chats.document() // random UUID id
+        val participantDetails = unique.associateWith { uid ->
+            // Best-effort: for myself, use displayName/email; others unknown for now
+            if (uid == me) ParticipantInfo(name = auth.currentUser?.displayName ?: (auth.currentUser?.email ?: "Me"), photoUrl = null)
+            else ParticipantInfo(name = "", photoUrl = null)
+        }
+        val doc = ChatDoc(
+            id = docRef.id,
+            name = name,
+            participants = unique,
+            participantDetails = participantDetails,
+            lastMessage = null,
+            metadata = null
+        )
+        docRef.set(doc, SetOptions.merge()).await()
+        docRef.update("updatedAt", FieldValue.serverTimestamp()).await()
+        return docRef.id
+    }
+
+    /** Renames a chat; any member may rename during MVP. */
+    suspend fun renameChat(chatId: String, newName: String?) {
+        chats.document(chatId).update(
+            mapOf(
+                "name" to newName,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+        ).await()
+    }
+
     fun subscribeMyChats(scope: CoroutineScope) {
         reg?.remove()
         val me = auth.currentUser?.uid ?: return

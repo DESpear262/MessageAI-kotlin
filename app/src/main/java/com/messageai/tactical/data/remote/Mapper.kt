@@ -75,7 +75,7 @@ object Mapper {
         return ChatEntity(
             id = doc.id,
             type = if ((doc.participants.size) > 2) "group" else "direct",
-            name = null,
+            name = doc.name,
             participants = json.encodeToString(doc.participants),
             lastMessage = lastMsgPreview,
             lastMessageTime = toEpochMillis(last?.timestamp),
@@ -87,7 +87,7 @@ object Mapper {
     // Friendly chat entity for a specific user (computes name)
     fun chatDocToEntityForUser(doc: ChatDoc, myUid: String): ChatEntity {
         val base = chatDocToEntity(doc)
-        val name = when {
+        val name = doc.name ?: when {
             doc.participants.size <= 1 -> "Note to self"
             doc.participants.size == 2 -> {
                 val other = doc.participants.firstOrNull { it != myUid } ?: myUid

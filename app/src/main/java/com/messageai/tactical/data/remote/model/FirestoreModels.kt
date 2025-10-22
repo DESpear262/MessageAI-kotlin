@@ -36,6 +36,7 @@ data class UserDoc(
 
 data class ChatDoc(
     val id: String = "",
+    val name: String? = null,
     val participants: List<String> = emptyList(),
     val participantDetails: Map<String, ParticipantInfo>? = null,
     val lastMessage: LastMessage? = null,

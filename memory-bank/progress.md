@@ -5,15 +5,15 @@
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.
 - Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository — done.
 - Block E: Realtime listeners, delivered/read receipts, RTDB presence/typing, 1:1 chat list + chat UI — mostly done.
-- Block I (in progress): Offline send queue with WorkManager, Firestore offline persistence.
+- Block I: Offline support & send queue — done.
 
 ## What Works
-- Background send via SendWorker (constraints + backoff); optimistic local insert.
-- Firestore offline persistence enabled.
+- Background send via SendWorker (constraints + backoff); optimistic local insert; idempotent Firestore writes.
+- Firestore offline persistence; queue re-scan on app start; SENDING→SENT state updates; lastMessage sync.
 
 ## What’s Next
-- App-start queue re-scan/enqueue; state transitions and lastMessage updates.
+- Choose next: F (Groups), G (Media), or H (Notifications).
 
 ## Known Issues / Notes
-- Add user-facing error for permanent failures (permission/rules).
+- Add user-facing FAILED state and manual retry in a later pass.
 

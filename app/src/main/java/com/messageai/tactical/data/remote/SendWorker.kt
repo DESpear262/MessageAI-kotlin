@@ -13,6 +13,7 @@ import androidx.work.WorkerParameters
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.messageai.tactical.data.db.AppDatabase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.tasks.await
@@ -22,7 +23,8 @@ import java.util.concurrent.TimeUnit
 class SendWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val db: AppDatabase
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -49,6 +51,17 @@ class SendWorker @AssistedInject constructor(
                 .document(messageId)
                 .set(doc, SetOptions.merge())
                 .await()
+            // Update lastMessage metadata
+            val last = hashMapOf(
+                "text" to text,
+                "senderId" to senderId,
+                "timestamp" to FieldValue.serverTimestamp()
+            )
+            firestore.collection(FirestorePaths.CHATS).document(chatId)
+                .update(mapOf("lastMessage" to last, "updatedAt" to FieldValue.serverTimestamp()))
+                .await()
+            // Mark local row as SENT and synced
+            db.messageDao().updateStatusSynced(messageId, "SENT", true)
             Result.success()
         } catch (e: Exception) {
             Result.retry()
