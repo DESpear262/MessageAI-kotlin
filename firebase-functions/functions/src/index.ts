@@ -5,8 +5,8 @@
  * new messages (direct and group) and updates presence on account deletion.
  */
 import * as admin from 'firebase-admin';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { user, UserRecord } from 'firebase-functions/v1/auth';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 
 admin.initializeApp();
 

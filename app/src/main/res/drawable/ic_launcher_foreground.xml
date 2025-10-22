@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- simple rounded rect badge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,24 h60 a12,12 0 0 1 12,12 v36 a12,12 0 0 1 -12,12 h-60 a12,12 0 0 1 -12,-12 v-36 a12,12 0 0 1 12,-12 z"/>
+
+    <!-- chat bubble-ish glyph -->
+    <path
+        android:fillColor="#121212"
+        android:pathData="M34,40 h40 a8,8 0 0 1 8,8 v8 a8,8 0 0 1 -8,8 h-18 l-8,8 v-8 h-14 a8,8 0 0 1 -8,-8 v-8 a8,8 0 0 1 8,-8 z"/>
+</vector>
