@@ -101,11 +101,3 @@ class ImageService @Inject constructor(
     }
 }
 
-// Kotlin coroutines await extensions for Storage
-private suspend fun com.google.android.gms.tasks.Task<com.google.firebase.storage.UploadTask.TaskSnapshot>.await(): com.google.firebase.storage.UploadTask.TaskSnapshot =
-    kotlinx.coroutines.tasks.await(this)
-
-private suspend fun com.google.android.gms.tasks.Task<android.net.Uri>.await(): android.net.Uri =
-    kotlinx.coroutines.tasks.await(this)
-
-

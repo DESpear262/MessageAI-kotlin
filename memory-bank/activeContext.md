@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Focus
-- Block G: Media – Images complete; policy metadata wired and UI rendering fixed.
+- Block F: Groups completed (unified chat list, name attribution, presence in header). Block G (Media) complete; awaiting rules integration.
 
 ## Recent Changes
 - Gallery and camera attach added (Android Photo Picker + TakePicture with FileProvider authority `${applicationId}.fileprovider`).
@@ -14,8 +14,9 @@
 - Workers: `SendWorker` creates/merges message doc (SENDING for image-first); `ImageUploadWorker` uploads and patches URL/status; WorkManager configured with HiltWorkerFactory; senderId plumbed through worker.
 
 ## Next Steps
-- Optional polish: oversize warning UX, percentage progress indicator, and a dedicated full preview screen post-MVP.
-- Validate on-device with poor network; confirm retry/backoff experience for large images.
+- Integrate finalized Storage/Firestore rules (pending other agent).
+- Optional polish: upload progress %, oversize warning, and full preview.
+- Validate presence/typing aggregation for groups.
 
 ## Risks
 - Large images can lead to longer uploads (indeterminate spinner only for MVP).

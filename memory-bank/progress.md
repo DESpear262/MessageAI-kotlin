@@ -4,10 +4,11 @@
 - Block A: Skeleton (flavors, Hilt, Compose, Room, Auth) — done.
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.
 - Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository — done.
-- Block E: Realtime listeners, delivered/read receipts, RTDB presence/typing, 1:1 chat list + chat UI — mostly done.
+- Block E: Realtime listeners, delivered/read receipts, RTDB presence/typing, 1:1 chat list + chat UI — done.
+- Block F: Group chat — done (unified list, group create/rename, sender attribution per bubble, presence header).
 - Block G: Media (images) — done (gallery + camera, upload, inline render, prefetch).
 - Block I: Offline support & send queue — done.
-- Block J: Presence indicator dots in list/header — done.
+- Block J: Presence indicator dots — done.
 
 ## What Works
 - Text send pipeline: optimistic local insert, background send via SendWorker (constraints + backoff), idempotent Firestore writes, lastMessage updates.
@@ -17,8 +18,9 @@
 - Presence dots (green online, gray offline) using RTDB `status/{uid}`.
 
 ## What’s Next
-- Optional: add progress % and oversize warning UX, and a full-screen preview after MVP.
-- Choose next: F (Groups), G (Media), or H (Notifications) refinements if any remain.
+- Finalize Storage/Firestore rules; integrate shared text policy.
+- Optional: upload progress %, oversize warning UX, full-screen preview.
+- Group typing indicators aggregation (optional).
 
 ## Known Issues / Notes
 - Indeterminate progress for uploads (acceptable for MVP).

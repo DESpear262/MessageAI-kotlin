@@ -85,8 +85,8 @@ private fun PresenceDot(isOnline: Boolean) {
 
 @Composable
 private fun ChatRow(vm: ChatListViewModel, chat: ChatEntity, onClick: () -> Unit) {
-    val myUid = vm.meUid
-    val otherUid = remember(chat.participants) {
+    val myUid = vm.meUid ?: ""
+    val otherUid = remember(chat.participants, myUid) {
         // participants is stored as JSON array string
         val list = try { kotlinx.serialization.json.Json.decodeFromString<List<String>>(chat.participants) } catch (_: Exception) { emptyList() }
         list.firstOrNull { it != myUid } ?: myUid

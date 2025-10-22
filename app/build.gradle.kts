@@ -227,3 +227,79 @@ tasks.register<Exec>("runProd") {
     commandLine(adbArgs("shell", "monkey", "-p", prodAppId, "-c", "android.intent.category.LAUNCHER", "1"))
 }
 
+
+// Helper to target a specific device serial
+fun adbArgsFor(serial: String, vararg more: String): List<String> = listOf("adb", "-s", serial) + more
+
+// Discover all connected/emulator devices in 'device' state
+fun listActiveDeviceSerials(): List<String> = try {
+    val process = ProcessBuilder("adb", "devices").redirectErrorStream(true).start()
+    val output = process.inputStream.bufferedReader().use { it.readText() }
+    process.waitFor()
+    output.lineSequence()
+        .drop(1) // skip header
+        .map { it.trim() }
+        .filter { it.endsWith("\tdevice") }
+        .map { it.substringBefore("\tdevice") }
+        .toList()
+} catch (e: Exception) {
+    emptyList()
+}
+
+// Assemble, install, and launch Dev Debug on ALL active emulators/devices
+tasks.register("runDevAll") {
+    group = "deployment"
+    description = "Assemble, install, and launch the Dev Debug app on all active emulators/devices."
+    dependsOn("assembleDevDebug")
+    doLast {
+        val devices = listActiveDeviceSerials()
+        if (devices.isEmpty()) {
+            logger.lifecycle("No active devices found via 'adb devices'.")
+            return@doLast
+        }
+
+        val apkFile = layout.buildDirectory.file("outputs/apk/dev/debug/app-dev-debug.apk").get().asFile
+        if (!apkFile.exists()) {
+            throw org.gradle.api.GradleException("APK not found at ${apkFile.absolutePath}. Build may have changed output path.")
+        }
+
+        devices.forEach { serial ->
+            project.exec {
+                commandLine(adbArgsFor(serial, "install", "-r", "-t", apkFile.absolutePath))
+            }
+            project.exec {
+                commandLine(adbArgsFor(serial, "shell", "monkey", "-p", devAppId, "-c", "android.intent.category.LAUNCHER", "1"))
+            }
+            logger.lifecycle("Deployed and launched on $serial")
+        }
+    }
+}
+
+// Assemble, install, and launch Prod Release on ALL active emulators/devices
+tasks.register("runProdAll") {
+    group = "deployment"
+    description = "Assemble, install, and launch the Prod Release app on all active emulators/devices."
+    dependsOn("assembleRelease")
+    doLast {
+        val devices = listActiveDeviceSerials()
+        if (devices.isEmpty()) {
+            logger.lifecycle("No active devices found via 'adb devices'.")
+            return@doLast
+        }
+
+        val apkFile = layout.buildDirectory.file("outputs/apk/prod/release/app-prod-release.apk").get().asFile
+        if (!apkFile.exists()) {
+            throw org.gradle.api.GradleException("APK not found at ${apkFile.absolutePath}. Build may have changed output path.")
+        }
+
+        devices.forEach { serial ->
+            project.exec {
+                commandLine(adbArgsFor(serial, "install", "-r", apkFile.absolutePath))
+            }
+            project.exec {
+                commandLine(adbArgsFor(serial, "shell", "monkey", "-p", prodAppId, "-c", "android.intent.category.LAUNCHER", "1"))
+            }
+            logger.lifecycle("Deployed and launched on $serial")
+        }
+    }
+}
