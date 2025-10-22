@@ -75,10 +75,24 @@ fun MessageAiAppRoot() {
                 if (isAuthenticated) {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
-                        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                            FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                                .update("fcmToken", token)
-                        }
+                        android.util.Log.d("AppRoot", "Requesting FCM token for user ${user.uid}")
+                        FirebaseMessaging.getInstance().token
+                            .addOnSuccessListener { token ->
+                                android.util.Log.d("AppRoot", "FCM token received: $token")
+                                FirebaseFirestore.getInstance().collection("users").document(user.uid)
+                                    .update("fcmToken", token)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("AppRoot", "FCM token saved to Firestore for user ${user.uid}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("AppRoot", "Failed to save FCM token to Firestore", e)
+                                    }
+                            }
+                            .addOnFailureListener { e ->
+                                android.util.Log.e("AppRoot", "Failed to get FCM token", e)
+                            }
+                    } else {
+                        android.util.Log.w("AppRoot", "No user logged in, skipping FCM token registration")
                     }
                 }
             }
