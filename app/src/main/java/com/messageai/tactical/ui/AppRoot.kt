@@ -12,6 +12,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -85,7 +87,8 @@ fun MessageAiAppRoot() {
             androidx.compose.material3.Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { padding ->
             NavHost(
                 navController = navController,
-                startDestination = if (isAuthenticated) "main" else "auth"
+                startDestination = if (isAuthenticated) "main" else "auth",
+                modifier = Modifier.padding(padding)
             ) {
                 composable("auth") {
                     AuthScreen(
