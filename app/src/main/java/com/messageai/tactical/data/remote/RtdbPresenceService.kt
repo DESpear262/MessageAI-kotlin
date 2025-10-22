@@ -21,16 +21,37 @@ class RtdbPresenceService @Inject constructor(
     private val rtdb: FirebaseDatabase
 ) {
     fun goOnline() {
-        val uid = auth.currentUser?.uid ?: return
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            android.util.Log.w("RtdbPresence", "goOnline called but no user is authenticated")
+            return
+        }
+        android.util.Log.d("RtdbPresence", "Setting user $uid to online")
         val ref = rtdb.getReference("status/$uid")
+        val presenceData = mapOf("state" to "online", "last_changed" to System.currentTimeMillis())
+        
+        // Set onDisconnect first
         ref.onDisconnect().setValue(mapOf("state" to "offline", "last_changed" to System.currentTimeMillis()))
-        ref.setValue(mapOf("state" to "online", "last_changed" to System.currentTimeMillis()))
+            .addOnSuccessListener { android.util.Log.d("RtdbPresence", "onDisconnect handler set for $uid") }
+            .addOnFailureListener { e -> android.util.Log.e("RtdbPresence", "Failed to set onDisconnect for $uid", e) }
+        
+        // Then set online
+        ref.setValue(presenceData)
+            .addOnSuccessListener { android.util.Log.d("RtdbPresence", "Successfully set $uid to online") }
+            .addOnFailureListener { e -> android.util.Log.e("RtdbPresence", "Failed to set $uid to online", e) }
     }
 
     fun goOffline() {
-        val uid = auth.currentUser?.uid ?: return
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            android.util.Log.w("RtdbPresence", "goOffline called but no user is authenticated")
+            return
+        }
+        android.util.Log.d("RtdbPresence", "Setting user $uid to offline")
         val ref = rtdb.getReference("status/$uid")
         ref.setValue(mapOf("state" to "offline", "last_changed" to System.currentTimeMillis()))
+            .addOnSuccessListener { android.util.Log.d("RtdbPresence", "Successfully set $uid to offline") }
+            .addOnFailureListener { e -> android.util.Log.e("RtdbPresence", "Failed to set $uid to offline", e) }
     }
 
     fun setTyping(chatId: String, typing: Boolean, scope: CoroutineScope) {

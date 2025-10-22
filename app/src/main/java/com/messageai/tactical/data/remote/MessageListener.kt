@@ -75,8 +75,15 @@ class MessageListener @Inject constructor(
                 val myUid = auth.currentUser?.uid
                 if (myUid != null) {
                     val unreadMessages = entities.filter { entity ->
-                        entity.senderId != myUid && !entity.readBy.contains(myUid)
+                        entity.senderId != myUid && run {
+                            // Parse readBy JSON array
+                            val readByList = try {
+                                kotlinx.serialization.json.Json.decodeFromString<List<String>>(entity.readBy)
+                            } catch (_: Exception) { emptyList() }
+                            !readByList.contains(myUid)
+                        }
                     }
+                    android.util.Log.d("MessageListener", "Unread count for chat $chatId: ${unreadMessages.size} (${entities.size} total messages)")
                     db.chatDao().updateUnread(chatId, unreadMessages.size)
                 }
                 

@@ -64,13 +64,30 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
         uri?.let { selectedImageUri = it }
     }
 
-    // Camera launcher
+    // Camera launcher (declare before permission launcher that uses it)
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
             cameraImageUri?.let { selectedImageUri = it }
+        }
+    }
+
+    // Camera permission launcher
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, launch camera
+            val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                imageFile
+            )
+            cameraImageUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -135,6 +152,19 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                                                     .clip(RoundedCornerShape(8.dp)),
                                                 contentScale = ContentScale.Fit
                                             )
+                                        } else if (msg.text.isNullOrBlank() && msg.status == "SENDING") {
+                                            // Show loading indicator for pending image
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    color = contentColor,
+                                                    strokeWidth = 2.dp
+                                                )
+                                                Text("Sending image...", style = MaterialTheme.typography.bodySmall)
+                                            }
                                         }
                                         if (!msg.text.isNullOrBlank()) {
                                             Text(text = msg.text)
@@ -153,14 +183,26 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                 }
                 // Camera button
                 IconButton(onClick = {
-                    val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        imageFile
-                    )
-                    cameraImageUri = uri
-                    cameraLauncher.launch(uri)
+                    val permission = android.Manifest.permission.CAMERA
+                    when {
+                        androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, permission
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
+                            // Permission already granted
+                            val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                imageFile
+                            )
+                            cameraImageUri = uri
+                            cameraLauncher.launch(uri)
+                        }
+                        else -> {
+                            // Request permission
+                            cameraPermissionLauncher.launch(permission)
+                        }
+                    }
                 }) {
                     Icon(Icons.Default.CameraAlt, contentDescription = "Camera")
                 }

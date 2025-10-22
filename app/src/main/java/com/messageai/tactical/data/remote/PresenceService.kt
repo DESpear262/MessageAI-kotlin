@@ -17,15 +17,24 @@ class PresenceService @Inject constructor(
     private val rtdb: FirebaseDatabase
 ) {
     fun isUserOnline(userId: String): Flow<Boolean> = callbackFlow {
+        android.util.Log.d("PresenceService", "Starting presence listener for user: $userId")
         val ref = rtdb.getReference("status/$userId/state")
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                trySend(snapshot.getValue(String::class.java) == "online")
+                val state = snapshot.getValue(String::class.java)
+                val isOnline = state == "online"
+                android.util.Log.d("PresenceService", "User $userId presence: $state (online=$isOnline)")
+                trySend(isOnline)
             }
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("PresenceService", "Presence listener cancelled for $userId: ${error.message}")
+            }
         }
         ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        awaitClose { 
+            android.util.Log.d("PresenceService", "Removing presence listener for $userId")
+            ref.removeEventListener(listener) 
+        }
     }
 
     fun meOnline(): Flow<Boolean> {
