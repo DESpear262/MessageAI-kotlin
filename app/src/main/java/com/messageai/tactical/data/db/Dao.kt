@@ -26,6 +26,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC")
     fun pagingSource(chatId: String): PagingSource<Int, MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE chatId = :chatId")
+    suspend fun getAllMessagesForChat(chatId: String): List<MessageEntity>
+
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateStatus(messageId: String, status: String)
 

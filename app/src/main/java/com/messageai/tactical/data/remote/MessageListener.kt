@@ -71,10 +71,12 @@ class MessageListener @Inject constructor(
                 android.util.Log.d("MessageListener", "Upserting ${entities.size} messages to Room")
                 db.messageDao().upsertAll(entities)
                 
-                // Update unread count for this chat
+                // Update unread count for this chat - query ALL messages, not just snapshot
                 val myUid = auth.currentUser?.uid
                 if (myUid != null) {
-                    val unreadMessages = entities.filter { entity ->
+                    // Get ALL messages for this chat from Room
+                    val allMessages = db.messageDao().getAllMessagesForChat(chatId)
+                    val unreadMessages = allMessages.filter { entity ->
                         entity.senderId != myUid && run {
                             // Parse readBy JSON array
                             val readByList = try {
@@ -83,7 +85,7 @@ class MessageListener @Inject constructor(
                             !readByList.contains(myUid)
                         }
                     }
-                    android.util.Log.d("MessageListener", "Unread count for chat $chatId: ${unreadMessages.size} (${entities.size} total messages)")
+                    android.util.Log.d("MessageListener", "Unread count for chat $chatId: ${unreadMessages.size} (${allMessages.size} total messages in chat)")
                     db.chatDao().updateUnread(chatId, unreadMessages.size)
                 }
                 

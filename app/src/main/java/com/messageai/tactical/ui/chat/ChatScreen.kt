@@ -64,14 +64,18 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
         uri?.let { selectedImageUri = it }
     }
 
-    // Camera launcher (declare before permission launcher that uses it)
+    // Camera state
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    var shouldLaunchCamera by remember { mutableStateOf(false) }
+    
+    // Camera launcher
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
             cameraImageUri?.let { selectedImageUri = it }
         }
+        shouldLaunchCamera = false
     }
 
     // Camera permission launcher
@@ -79,7 +83,13 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // Permission granted, launch camera
+            shouldLaunchCamera = true
+        }
+    }
+    
+    // Handle camera launch after permission granted
+    LaunchedEffect(shouldLaunchCamera) {
+        if (shouldLaunchCamera) {
             val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
             val uri = FileProvider.getUriForFile(
                 context,
@@ -88,6 +98,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
             )
             cameraImageUri = uri
             cameraLauncher.launch(uri)
+            shouldLaunchCamera = false
         }
     }
 
