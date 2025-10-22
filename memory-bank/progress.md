@@ -5,15 +5,20 @@
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.
 - Block D: Paging 3, RemoteMediator, Room indices/remote keys, repository — done.
 - Block E: Realtime listeners, delivered/read receipts, RTDB presence/typing, 1:1 chat list + chat UI — mostly done.
+- Block G: Media (images) — done (gallery + camera, upload, inline render, prefetch).
 - Block I: Offline support & send queue — done.
 
 ## What Works
-- Background send via SendWorker (constraints + backoff); optimistic local insert; idempotent Firestore writes.
-- Firestore offline persistence; queue re-scan on app start; SENDING→SENT state updates; lastMessage sync.
+- Text send pipeline: optimistic local insert, background send via SendWorker (constraints + backoff), idempotent Firestore writes, lastMessage updates.
+- Image pipeline: pick/capture → cache copy → resize/compress (LWW timestamps honored) → Storage upload → patch message with `imageUrl` and `status=SENT`.
+- UI: Inline images via Coil with prefetch; simple pending preview and send; chat bubbles adapt to image or text.
+- WorkManager + Hilt WorkerFactory configured; workers resilient to restarts.
 
 ## What’s Next
-- Choose next: F (Groups), G (Media), or H (Notifications).
+- Finalize Storage/Firestore rules for media once text policy is ready; integrate shared policy.
+- Optional: add progress % and oversize warning UX, and a full-screen preview after MVP.
 
 ## Known Issues / Notes
-- Add user-facing FAILED state and manual retry in a later pass.
+- Indeterminate progress for uploads (acceptable for MVP).
+- Security rules pending coordination; test media strictly in dev until policies land.
 
