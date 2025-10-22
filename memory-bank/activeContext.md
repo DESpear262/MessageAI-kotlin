@@ -5,6 +5,7 @@
 
 ## Recent Changes
 - 1:1 chat list with real-time subscription and navigation.
+- Chat title now shows other participant’s screen name (Room-backed).
 - Chat creation by email/screen name; self-chat labeled "Note to self".
 - Chat screen: newest-at-top, styled bubbles (mine right/blue, other left/gray), input bar, back button.
 - Landing page top bar with Logout.

@@ -10,7 +10,7 @@
 - Login/register/forgot; logout in top bar.
 - Start chat by email/screen name; self-chat supported.
 - Real-time chat list sync; open chat; back to list.
-- Chat screen with styled bubbles, reverse order, and sending.
+- Chat screen with styled bubbles, reverse order, dynamic title (other user name), and sending.
 
 ## What’s Next
 - Block I: Offline support & send queue with retries; Firestore offline persistence; network handling; message state transitions.

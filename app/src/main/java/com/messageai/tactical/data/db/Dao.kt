@@ -41,6 +41,9 @@ interface ChatDao {
     @Query("SELECT * FROM chats ORDER BY updatedAt DESC")
     fun getChats(): Flow<List<ChatEntity>>
 
+    @Query("SELECT * FROM chats WHERE id = :chatId LIMIT 1")
+    fun getChat(chatId: String): Flow<ChatEntity?>
+
     @Query("UPDATE chats SET unreadCount = :count WHERE id = :chatId")
     suspend fun updateUnread(chatId: String, count: Int)
 }

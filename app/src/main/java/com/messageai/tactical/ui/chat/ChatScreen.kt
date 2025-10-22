@@ -16,10 +16,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.firebase.auth.FirebaseAuth
+import com.messageai.tactical.data.db.ChatDao
 import com.messageai.tactical.data.remote.MessageRepository
 import com.messageai.tactical.data.remote.MessageService
 import com.messageai.tactical.data.remote.model.MessageDoc
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -29,6 +31,7 @@ import javax.inject.Inject
 fun ChatScreen(chatId: String, onBack: () -> Unit) {
     val vm: ChatViewModel = hiltViewModel()
     val messages: LazyPagingItems<com.messageai.tactical.data.db.MessageEntity> = vm.messages(chatId).collectAsLazyPagingItems()
+    val title by vm.chatTitle(chatId).collectAsState(initial = "Chat")
 
     var input by remember { mutableStateOf(TextFieldValue("")) }
     val scope = rememberCoroutineScope()
@@ -37,7 +40,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chat") },
+                title = { Text(title) },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }
             )
         }
@@ -93,11 +96,14 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
 class ChatViewModel @Inject constructor(
     private val repo: MessageRepository,
     private val svc: MessageService,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val chatDao: ChatDao
 ) : androidx.lifecycle.ViewModel() {
     val myUid: String? get() = auth.currentUser?.uid
 
     fun messages(chatId: String) = repo.messages(chatId)
+
+    fun chatTitle(chatId: String) = chatDao.getChat(chatId).map { it?.name ?: "Chat" }
 
     suspend fun send(chatId: String, text: String) {
         val me = auth.currentUser ?: return
