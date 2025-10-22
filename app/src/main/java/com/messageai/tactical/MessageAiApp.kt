@@ -17,6 +17,7 @@ import com.messageai.tactical.data.db.AppDatabase
 import com.messageai.tactical.data.remote.SendWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 @HiltAndroidApp
@@ -53,8 +54,8 @@ class MessageAiApp : Application(), Configuration.Provider {
         }
     }
 
-    override fun getWorkManagerConfiguration(): Configuration =
-        Configuration.Builder()
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
 

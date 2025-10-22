@@ -19,6 +19,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ListenerRegistration
 import com.messageai.tactical.data.db.MessageEntity
 import com.messageai.tactical.data.remote.Mapper
 import com.messageai.tactical.data.remote.MessageRepository
@@ -26,6 +27,10 @@ import com.messageai.tactical.data.remote.MessageService
 import com.messageai.tactical.data.remote.SendWorker
 import com.messageai.tactical.data.remote.model.MessageDoc
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -40,12 +45,20 @@ import androidx.core.content.FileProvider
 import android.net.Uri
 import java.io.File
 import coil.imageLoader
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(chatId: String, onBack: () -> Unit) {
     val vm: ChatViewModel = hiltViewModel()
-    val messages: LazyPagingItems<com.messageai.tactical.data.db.MessageEntity> = vm.messages(chatId).collectAsLazyPagingItems()
+    val refreshTrigger: Int by vm.refreshTrigger.collectAsState()
+    
+    // Recreate paging flow when trigger changes - this forces new PagingSource
+    val messages: LazyPagingItems<com.messageai.tactical.data.db.MessageEntity> = remember(refreshTrigger) {
+        android.util.Log.d("ChatScreen", "Creating new paging flow for trigger: $refreshTrigger")
+        vm.messages(chatId)
+    }.collectAsLazyPagingItems()
+    
     val title by vm.chatTitle(chatId).collectAsState(initial = "Chat")
 
     var input by remember { mutableStateOf(TextFieldValue("")) }
@@ -72,6 +85,11 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                 pendingImage = cached
             }
         }
+    }
+
+    // Start listening for realtime updates
+    LaunchedEffect(chatId) {
+        vm.startListener(chatId, scope)
     }
 
     // Prefetch images for visible + next items
@@ -131,8 +149,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(18.dp))
                                         .background(bubbleColor)
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                        .widthIn(min = 40.dp, max = 280.dp)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        .widthIn(min = 60.dp, max = 280.dp)
                                 ) {
                                     CompositionLocalProvider(LocalContentColor provides contentColor) {
                                         if (!msg.imageUrl.isNullOrEmpty()) {
@@ -142,7 +160,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                                                     .crossfade(true)
                                                     .build(),
                                                 contentDescription = null,
-                                                modifier = Modifier.fillMaxWidth()
+                                                contentScale = ContentScale.Inside,
+                                                modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp)
                                             )
                                         } else {
                                             Text(text = msg.text ?: "[image]")
@@ -153,6 +172,19 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         }
                     }
                 }
+            }
+            // Mark read for fully visible messages
+            LaunchedEffect(listState, messages.itemCount) {
+                snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+                    .map { infos ->
+                        val viewportEnd = listState.layoutInfo.viewportEndOffset
+                        infos.filter { it.offset >= 0 && (it.offset + it.size) <= viewportEnd }
+                            .mapNotNull { vi -> messages.peek(vi.index)?.id }
+                    }
+                    .distinctUntilChanged()
+                    .collectLatest { fullyVisibleIds ->
+                        if (fullyVisibleIds.isNotEmpty()) vm.onFullyVisible(chatId, fullyVisibleIds)
+                    }
             }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 // Attach actions
@@ -205,17 +237,58 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
 class ChatViewModel @Inject constructor(
     private val repo: MessageRepository,
     private val svc: MessageService,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val messageListener: com.messageai.tactical.data.remote.MessageListener,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore,
+    private val readUpdater: com.messageai.tactical.data.remote.ReadReceiptUpdater
 ) : androidx.lifecycle.ViewModel() {
     val myUid: String? get() = auth.currentUser?.uid
 
+    private val _refreshTrigger = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val refreshTrigger = _refreshTrigger.asStateFlow()
+
     fun messages(chatId: String) = repo.messages(chatId)
+
+    fun startListener(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
+        messageListener.setOnDataChanged {
+            android.util.Log.d("ChatViewModel", "Data changed, incrementing refresh trigger")
+            _refreshTrigger.value++
+        }
+        messageListener.start(chatId, scope)
+
+        // Also listen for participantDetails to populate name map
+        chatDetailsReg?.remove()
+        chatDetailsReg = firestore.collection(com.messageai.tactical.data.remote.FirestorePaths.CHATS)
+            .document(chatId)
+            .addSnapshotListener { doc, _ ->
+                val map = doc?.get("participantDetails") as? Map<*, *> ?: return@addSnapshotListener
+                val names = mutableMapOf<String, String>()
+                map.forEach { (k, v) ->
+                    val uid = k as? String ?: return@forEach
+                    val name = (v as? Map<*, *>)?.get("name") as? String ?: uid
+                    names[uid] = name
+                }
+                participantNames.clear()
+                participantNames.putAll(names)
+            }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        messageListener.stop()
+        chatDetailsReg?.remove()
+    }
 
     fun chatTitle(chatId: String) = repo.db.chatDao().getChat(chatId).map { it?.name ?: "Chat" }
 
     // Cache of participant names for quick lookup
     private val participantNames = mutableStateMapOf<String, String>()
+    private var chatDetailsReg: ListenerRegistration? = null
     fun nameFor(uid: String): String = participantNames[uid] ?: uid
+
+    fun onFullyVisible(chatId: String, ids: List<String>) {
+        readUpdater.markRead(chatId, ids, androidx.lifecycle.viewModelScope)
+    }
 
     suspend fun send(chatId: String, text: String, context: android.content.Context) {
         val me = auth.currentUser ?: return
@@ -259,7 +332,7 @@ class ChatViewModel @Inject constructor(
         // Create message doc as SENDING so recipients see placeholder
         SendWorker.enqueue(context, id, chatId, me.uid, null, entity.timestamp, imageLocalPath = file.absolutePath)
         // Upload image via dedicated worker which patches URL and status
-        com.messageai.tactical.data.remote.ImageUploadWorker.enqueue(context, id, chatId, file.absolutePath)
+        com.messageai.tactical.data.remote.ImageUploadWorker.enqueue(context, id, chatId, me.uid, file.absolutePath)
     }
 
     fun cachePickedUri(context: android.content.Context, uri: Uri): File {

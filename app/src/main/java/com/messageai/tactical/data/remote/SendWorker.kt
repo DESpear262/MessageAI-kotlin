@@ -42,8 +42,11 @@ class SendWorker @AssistedInject constructor(
             "text" to text,
             "clientTimestamp" to clientTs,
             "status" to (if (imageLocalPath != null) "SENDING" else "SENT"),
+            "readBy" to emptyList<String>(),
+            "deliveredBy" to emptyList<String>(),
             "localOnly" to false,
-            "timestamp" to FieldValue.serverTimestamp()
+            "timestamp" to FieldValue.serverTimestamp(),
+            "metadata" to null
         )
         return try {
             firestore.collection(FirestorePaths.CHATS)
@@ -67,6 +70,7 @@ class SendWorker @AssistedInject constructor(
             }
             Result.success()
         } catch (e: Exception) {
+            android.util.Log.e("SendWorker", "Failed to send message $messageId to chat $chatId", e)
             Result.retry()
         }
     }

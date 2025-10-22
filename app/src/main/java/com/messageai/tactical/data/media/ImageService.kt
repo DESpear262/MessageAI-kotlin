@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.exifinterface.media.ExifInterface
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -16,6 +17,7 @@ import java.io.InputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.tasks.await
 
 /**
  * ImageService handles: picking URIs, copying to app cache for retry, EXIF strip, optional
@@ -80,7 +82,7 @@ class ImageService @Inject constructor(
     }
 
     /** Processes and uploads; returns the public download URL. */
-    suspend fun processAndUpload(chatId: String, messageId: String, sourceUri: Uri, options: ProcessOptions = ProcessOptions()): String {
+    suspend fun processAndUpload(chatId: String, messageId: String, senderId: String, sourceUri: Uri, options: ProcessOptions = ProcessOptions()): String {
         val resolver = context.contentResolver
         val bitmap = decodeBitmap(resolver, sourceUri)
         val resized = resizeBitmap(bitmap, options.maxEdge)
@@ -88,7 +90,13 @@ class ImageService @Inject constructor(
 
         val path = "chat-media/${'$'}chatId/${'$'}messageId.jpg"
         val ref = storage.reference.child(path)
-        val task = ref.putBytes(jpegBytes).await()
+        val metadata = StorageMetadata.Builder()
+            .setContentType("image/jpeg")
+            .setCustomMetadata("chatId", chatId)
+            .setCustomMetadata("messageId", messageId)
+            .setCustomMetadata("senderId", senderId)
+            .build()
+        ref.putBytes(jpegBytes, metadata).await()
         return ref.downloadUrl.await().toString()
     }
 }

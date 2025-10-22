@@ -168,6 +168,7 @@ dependencies {
 
     // ----- Coroutines -----
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
     // Kotlinx Serialization (JSON)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 

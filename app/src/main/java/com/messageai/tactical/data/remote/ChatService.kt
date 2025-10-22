@@ -60,10 +60,11 @@ class ChatService @Inject constructor(
         val me = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
         val unique = memberUids.distinct()
         require(unique.size >= 3) { "Group requires at least 3 members" }
+        require(unique.contains(me)) { "Creator must be in group members list" }
         val docRef = chats.document() // random UUID id
         val participantDetails = unique.associateWith { uid ->
             // Best-effort: for myself, use displayName/email; others unknown for now
-            val baseName = if (uid == me) auth.currentUser?.displayName ?: (auth.currentUser?.email ?: "Me") else memberNames?.get(uid) ?: ""
+            val baseName = if (uid == me) auth.currentUser?.displayName ?: (auth.currentUser?.email ?: "Me") else memberNames?.get(uid) ?: uid
             ParticipantInfo(name = baseName, photoUrl = null)
         }
         val doc = ChatDoc(

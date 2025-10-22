@@ -27,26 +27,53 @@ class MessageListener @Inject constructor(
     private val db: AppDatabase
 ) {
     private var registration: ListenerRegistration? = null
+    private var onDataChanged: (() -> Unit)? = null
+    
+    fun setOnDataChanged(callback: () -> Unit) {
+        onDataChanged = callback
+    }
 
     fun start(chatId: String, scope: CoroutineScope) {
         stop()
+        android.util.Log.d("MessageListener", "Starting listener for chat $chatId")
         val col = firestore.collection(FirestorePaths.CHATS).document(chatId).collection(FirestorePaths.MESSAGES)
-        registration = col.addSnapshotListener { snapshot, _ ->
-            if (snapshot == null) return@addSnapshotListener
+        registration = col.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.e("MessageListener", "Firestore listener error for chat $chatId", error)
+                return@addSnapshotListener
+            }
+            if (snapshot == null) {
+                android.util.Log.w("MessageListener", "Snapshot is null for chat $chatId")
+                return@addSnapshotListener
+            }
+            android.util.Log.d("MessageListener", "Received snapshot for chat $chatId with ${snapshot.documents.size} total documents, ${snapshot.documentChanges.size} changes")
             scope.launch(Dispatchers.IO) {
                 val docs = mutableListOf<MessageDoc>()
                 for (dc in snapshot.documentChanges) {
                     when (dc.type) {
                         DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
-                            dc.document.toObject(MessageDoc::class.java)?.let { docs.add(it) }
+                            dc.document.toObject(MessageDoc::class.java)?.let { 
+                                android.util.Log.d("MessageListener", "Processing ${dc.type} message: ${it.id}")
+                                docs.add(it) 
+                            }
                         }
-                        DocumentChange.Type.REMOVED -> {}
+                        DocumentChange.Type.REMOVED -> {
+                            android.util.Log.d("MessageListener", "Message removed: ${dc.document.id}")
+                        }
                     }
                 }
-                if (docs.isEmpty()) return@launch
+                if (docs.isEmpty()) {
+                    android.util.Log.d("MessageListener", "No documents to process")
+                    return@launch
+                }
                 // Write-through to Room
                 val entities = docs.map { Mapper.messageDocToEntity(it) }
+                android.util.Log.d("MessageListener", "Upserting ${entities.size} messages to Room")
                 db.messageDao().upsertAll(entities)
+                
+                // Notify UI to refresh
+                android.util.Log.d("MessageListener", "Notifying UI of data change")
+                onDataChanged?.invoke()
 
                 // deliveredBy: mark delivery for messages I received (not authored by me)
                 val myUid = auth.currentUser?.uid

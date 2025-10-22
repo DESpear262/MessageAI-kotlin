@@ -33,10 +33,11 @@ class ImageUploadWorker @AssistedInject constructor(
         val messageId = inputData.getString(KEY_MESSAGE_ID) ?: return Result.failure()
         val chatId = inputData.getString(KEY_CHAT_ID) ?: return Result.failure()
         val localPath = inputData.getString(KEY_IMAGE_LOCAL_PATH) ?: return Result.failure()
+        val senderId = inputData.getString(KEY_SENDER_ID) ?: return Result.failure()
 
         return try {
             val uri = Uri.fromFile(java.io.File(localPath))
-            val downloadUrl = imageService.processAndUpload(chatId, messageId, uri)
+            val downloadUrl = imageService.processAndUpload(chatId, messageId, senderId, uri)
 
             val col = firestore.collection(FirestorePaths.CHATS).document(chatId)
                 .collection(FirestorePaths.MESSAGES)
@@ -52,7 +53,7 @@ class ImageUploadWorker @AssistedInject constructor(
             val last = hashMapOf(
                 "imageUrl" to downloadUrl,
                 "text" to null,
-                "senderId" to inputData.getString(SendWorker.KEY_SENDER_ID),
+                "senderId" to senderId,
                 "timestamp" to FieldValue.serverTimestamp()
             )
             firestore.collection(FirestorePaths.CHATS).document(chatId)
@@ -73,8 +74,9 @@ class ImageUploadWorker @AssistedInject constructor(
         const val KEY_MESSAGE_ID = "messageId"
         const val KEY_CHAT_ID = "chatId"
         const val KEY_IMAGE_LOCAL_PATH = "imageLocalPath"
+        const val KEY_SENDER_ID = "senderId"
 
-        fun enqueue(context: Context, messageId: String, chatId: String, localPath: String) {
+        fun enqueue(context: Context, messageId: String, chatId: String, senderId: String, localPath: String) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
@@ -84,6 +86,7 @@ class ImageUploadWorker @AssistedInject constructor(
                 .putString(KEY_MESSAGE_ID, messageId)
                 .putString(KEY_CHAT_ID, chatId)
                 .putString(KEY_IMAGE_LOCAL_PATH, localPath)
+                .putString(KEY_SENDER_ID, senderId)
                 .build()
 
             val request = OneTimeWorkRequestBuilder<ImageUploadWorker>()
