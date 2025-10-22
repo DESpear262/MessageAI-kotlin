@@ -161,6 +161,11 @@ dependencies {
     // ----- Paging (for RemoteMediator superclass) -----
     implementation("androidx.paging:paging-runtime-ktx:3.3.2")
 
+    // ----- WorkManager + Hilt integration for @HiltWorker -----
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
+
     // ----- Coroutines -----
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     // Kotlinx Serialization (JSON)
@@ -175,6 +180,12 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.compose.foundation:foundation")
+
+    // ----- Images (Coil) -----
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // ----- EXIF (for stripping/rotation/HEIC handling) -----
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 }
 
 // Keep Kotlin at 17 for all Kotlin compile tasks (covers KSP too)

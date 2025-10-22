@@ -32,6 +32,9 @@ interface MessageDao {
     @Query("UPDATE messages SET status = :status, synced = :synced WHERE id = :messageId")
     suspend fun updateStatusSynced(messageId: String, status: String, synced: Boolean)
 
+    @Query("UPDATE messages SET imageUrl = :imageUrl, status = :status, synced = 1 WHERE id = :messageId")
+    suspend fun updateImageAndStatus(messageId: String, imageUrl: String, status: String)
+
     @Query("SELECT * FROM messages WHERE synced = 0 AND status = 'SENDING'")
     fun unsentMessages(): Flow<List<MessageEntity>>
 }

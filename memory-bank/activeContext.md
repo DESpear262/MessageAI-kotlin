@@ -1,16 +1,18 @@
 # Active Context
 
 ## Current Focus
-- Block I completed: Offline support & send queue.
+- Block F: Group chat – unified chat list, group creation, sender attribution.
 
 ## Recent Changes
-- Firestore offline persistence enabled.
-- SendWorker with constraints/backoff; idempotent merge writes.
-- Optimistic local insert; enqueue per message; re-scan queue on app start.
-- State transitions SENDING→SENT; lastMessage updated on send.
+- Unified chat list (direct + group) from single `chats` collection ordered by `updatedAt`.
+- Added `name` to `ChatDoc`; Mapper prefers explicit name else derives from participants.
+- Group creation API in `ChatService` (random id), rename API; LWW `updatedAt`.
+- Chat create UI now supports multi-select add/remove and Create button; auto-names from member names.
+- Chat bubbles show sender name and an avatar placeholder for non-self messages (every bubble).
 
 ## Next Steps
-- Proceed to next block (F: Groups, G: Media, or H: Notifications) per plan.
+- Wire delivered/read receipts for groups consistent with direct chats (wait for 1:1 agent completion, then integrate).
+- Ensure participant name cache loads on chat open.
 
 ## Risks
 - Permanent failure surfacing UX (FAILED + retry) can be improved later.

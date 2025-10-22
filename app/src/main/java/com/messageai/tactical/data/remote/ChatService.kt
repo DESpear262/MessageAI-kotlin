@@ -56,15 +56,15 @@ class ChatService @Inject constructor(
     }
 
     /** Creates a group chat with the given members and optional name. */
-    suspend fun createGroupChat(name: String?, memberUids: List<String>): String {
+    suspend fun createGroupChat(name: String?, memberUids: List<String>, memberNames: Map<String, String>? = null): String {
         val me = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
         val unique = memberUids.distinct()
         require(unique.size >= 3) { "Group requires at least 3 members" }
         val docRef = chats.document() // random UUID id
         val participantDetails = unique.associateWith { uid ->
             // Best-effort: for myself, use displayName/email; others unknown for now
-            if (uid == me) ParticipantInfo(name = auth.currentUser?.displayName ?: (auth.currentUser?.email ?: "Me"), photoUrl = null)
-            else ParticipantInfo(name = "", photoUrl = null)
+            val baseName = if (uid == me) auth.currentUser?.displayName ?: (auth.currentUser?.email ?: "Me") else memberNames?.get(uid) ?: ""
+            ParticipantInfo(name = baseName, photoUrl = null)
         }
         val doc = ChatDoc(
             id = docRef.id,

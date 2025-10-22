@@ -10,7 +10,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import dagger.hilt.android.HiltAndroidApp
-import androidx.work.ExistingWorkPolicy
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import javax.inject.Inject
 import com.messageai.tactical.data.db.AppDatabase
 import com.messageai.tactical.data.remote.SendWorker
@@ -19,8 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @HiltAndroidApp
-class MessageAiApp : Application() {
+class MessageAiApp : Application(), Configuration.Provider {
     @Inject lateinit var db: AppDatabase
+    @Inject lateinit var workerFactory: HiltWorkerFactory
 
     override fun onCreate() {
         super.onCreate()
@@ -50,6 +52,11 @@ class MessageAiApp : Application() {
             }
         }
     }
+
+    override fun getWorkManagerConfiguration(): Configuration =
+        Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

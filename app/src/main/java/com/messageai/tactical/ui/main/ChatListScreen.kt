@@ -27,6 +27,7 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var query by remember { mutableStateOf("") }
+    val selected = remember { mutableStateListOf<Map<String, String>>() }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -46,13 +47,21 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit) {
             FloatingActionButton(onClick = {
                 scope.launch {
                     try {
-                        vm.startChat(query, onOpenChat) { error = it }
+                        if (selected.isEmpty()) {
+                            // Single input path (legacy): start direct from query
+                            vm.startChat(query, onOpenChat) { error = it }
+                        } else {
+                            val ids = selected.map { it["uid"]!! }
+                            val names = selected.associate { it["uid"]!! to (it["name"] ?: it["uid"]!!) }
+                            val resultChatId = vm.createOrOpen(ids, names)
+                            if (resultChatId != null) onOpenChat(resultChatId)
+                        }
                         error = null
                     } catch (e: Exception) {
                         error = e.message ?: "Something went wrong starting the chat"
                     }
                 }
-            }) { Text("+") }
+            }) { Text("Create") }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(12.dp)) {
@@ -60,8 +69,37 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit) {
                 value = query,
                 onValueChange = { query = it },
                 label = { Text("Email or screen name") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    TextButton(onClick = {
+                        scope.launch {
+                            val user = vm.lookupUserPublic(query)
+                            if (user != null) {
+                                val map = mapOf(
+                                    "uid" to (user["uid"] as String),
+                                    "name" to ((user["displayName"] as? String) ?: (user["email"] as? String) ?: "")
+                                )
+                                if (selected.none { it["uid"] == map["uid"] }) selected.add(map)
+                                query = ""
+                                error = null
+                            } else {
+                                error = "No such user"
+                            }
+                        }
+                    }) { Text("Add") }
+                }
             )
+            if (selected.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Column {
+                    selected.forEach { u ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(u["name"] ?: u["uid"]!!)
+                            TextButton(onClick = { selected.remove(u) }) { Text("X") }
+                        }
+                    }
+                }
+            }
             if (!error.isNullOrEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(error!!, color = MaterialTheme.colorScheme.error)
@@ -118,11 +156,33 @@ class ChatListViewModel @Inject constructor(
         onOpenChat(chatId)
     }
 
+    suspend fun lookupUserPublic(q: String): Map<String, Any>? = lookupUser(q)
+
     private suspend fun lookupUser(q: String): Map<String, Any>? {
         val byEmail = firestore.collection("users").whereEqualTo("email", q).limit(1).get().await()
         if (!byEmail.isEmpty) return byEmail.documents.first().data
         val byName = firestore.collection("users").whereEqualTo("displayNameLower", q.lowercase()).limit(1).get().await()
         if (!byName.isEmpty) return byName.documents.first().data
         return null
+    }
+
+    suspend fun createOrOpen(memberUids: List<String>, memberNames: Map<String, String>): String? {
+        val me = auth.currentUser ?: return null
+        val unique = (memberUids + me.uid).distinct()
+        return if (unique.size == 2) {
+            // direct
+            val other = unique.first { it != me.uid }
+            chatService.ensureDirectChat(me.uid, other, me.displayName ?: me.email ?: "Me", otherName = other)
+        } else {
+            // group of 3 (MVP max per request)
+            val name = selectedAutoName(unique, memberNames, me.uid)
+            chatService.createGroupChat(name, unique, memberNames)
+        }
+    }
+
+    private fun selectedAutoName(uids: List<String>, names: Map<String, String>, me: String): String {
+        val others = uids.filter { it != me }
+        val parts = others.map { names[it] ?: it }
+        return parts.joinToString(", ")
     }
 }
