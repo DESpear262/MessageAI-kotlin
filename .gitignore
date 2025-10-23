@@ -187,3 +187,9 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+# Firebase Functions (TypeScript build output & local env)
+firebase-functions/functions/lib/
+firebase-functions/functions/lib/**/*.js
+firebase-functions/functions/lib/**/*.js.map
+firebase-functions/functions/.env*

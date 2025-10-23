@@ -1,6 +1,6 @@
 package com.messageai.tactical.data.remote
 
-import com.google.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /**

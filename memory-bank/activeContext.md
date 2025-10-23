@@ -1,22 +1,34 @@
 # Active Context
 
 ## Current Focus
-- Block F: Groups completed (unified chat list, name attribution, presence in header). Block G (Media) complete; awaiting rules integration.
+- Block A: AI Core module ✅ COMPLETE & QC TESTED
+- Ready to proceed to Block B (Firebase Function Proxy) and Block B2 (LangChain Service)
 
 ## Recent Changes
-- Gallery and camera attach added (Android Photo Picker + TakePicture with FileProvider authority `${applicationId}.fileprovider`).
-- Image pipeline:
-  - Copy picked/captured URI to app cache for retry durability
-  - Resize to max edge 2048px and JPEG compress at ~85 quality
-  - EXIF stripped by re-encode; HEIC decoded via ImageDecoder on API 28+
-  - Upload to Storage at `chat-media/{chatId}/{messageId}.jpg` with metadata (contentType `image/jpeg`, custom: `chatId`, `messageId`, `senderId`); patch message doc `imageUrl` + `status=SENT` and `lastMessage`.
-- UI: Inline image rendering with Coil fixed (sizing/contentScale), prefetch for visible + next items; simple pre-send preview row (cancel/send) with indeterminate progress UX.
-- Workers: `SendWorker` creates/merges message doc (SENDING for image-first); `ImageUploadWorker` uploads and patches URL/status; WorkManager configured with HiltWorkerFactory; senderId plumbed through worker.
+- Block A AI Core Module completed:
+  - `RagConfig` and `RagContextBuilder` (configurable window sizes per task)
+  - Interfaces and services: `IAIProvider`, `AIService`
+  - Networking: Retrofit `LangChainApi` + `LangChainAdapter` with all 5 endpoints
+  - Providers: `LocalProvider` (offline testing)
+  - DI: `AIModule` with OkHttp (Firebase Auth + logging), Retrofit, Hilt bindings
+  - Worker: `AIWorkflowWorker` with network constraints + exponential backoff
+  - Tests: 32 comprehensive unit tests (100% pass rate)
+- QC Review completed:
+  - All Block A code compiles cleanly
+  - All acceptance criteria met
+  - Security review passed
+  - Documentation added (QC report + developer README)
+- Pre-existing test issues fixed (unrelated to Block A):
+  - Google Truth import package corrected in 5 test files
+  - RootViewModel tests updated for presence service parameter
+  - Test suite: 98% pass rate (71/72 tests)
+- Dependencies added: Retrofit, Moshi, OkHttp, test libraries (MockK, Truth)
 
 ## Next Steps
-- Integrate finalized Storage/Firestore rules (pending other agent).
-- Optional polish: upload progress %, oversize warning, and full preview.
-- Validate presence/typing aggregation for groups.
+- Block B: Deploy Firebase Cloud Function proxy for LangChain routing
+- Block B2: Deploy LangChain Python service with RAG + agent workflows
+- Update `CF_BASE_URL` in build.gradle once endpoints deployed
+- Integration testing with live LangChain service
 
 ## Risks
 - Large images can lead to longer uploads (indeterminate spinner only for MVP).

@@ -4,15 +4,18 @@
 - UI: Jetpack Compose screens (Auth, Chat List, Chat, Profile, Group Create).
 - State: ViewModels + Kotlin Flows; optimistic local state.
 - Services: Auth, Chat, Message, Presence, Image, Notification, Queue.
+  - **AI (Sprint 2):** Provider interface + Retrofit adapter; RAG context builder with configurable window; LangChain integration; WorkManager offline queue.
 - Local Storage: Room (messages/chats/queue), file cache (images), DataStore/Keystore for tokens.
 - Network: Transport abstraction (Firestore client MVP; prep for Bluetooth/Wi‑Fi Direct). Network monitor feeds queue.
 - Modules (pluggable): AI provider, Encryption provider (future upgrades).
+  - AI defaults: Retrofit/OkHttp/Moshi; Firebase ID token bearer; feature-flag via BuildConfig; LocalProvider for offline testing.
 
 ## Key Decisions
 - DI with Hilt across app and workers; WorkManager configured with HiltWorkerFactory.
 - Queue with WorkManager (OneTime for per-message, Periodic for batch sync); exponential backoff.
 - Firestore for realtime sync; enable Firestore offline persistence. Optional RTDB for ephemeral presence/typing.
 - Media via Firebase Storage; Coil for caching and display.
+ - AI: Separate REST paths behind Cloud Function proxy; request envelope `{requestId, context, payload}` and matching response envelope; requestId logged client-side.
 - Conflict resolution: Last-write-wins by timestamp for MVP.
 - Data docs include `metadata: Map<String, Any>` for extensibility.
 - Notifications: Prefer in-app Snackbar banner with preview when foreground. Use system notification fallback when app is backgrounded. Store `fcmToken` on user doc at sign-in and on token refresh.
