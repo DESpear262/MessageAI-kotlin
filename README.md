@@ -1,50 +1,84 @@
-# Welcome to your Expo app 👋
+## MessageAI (Android · Kotlin)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A tactical messaging app focused on reliable, real-time communication with offline-first behavior. MVP delivers 1:1 and group chat, local persistence, media sharing, and foreground notifications. Built natively with Kotlin + Jetpack Compose.
 
-## Get started
+### Key Features (MVP)
+- Real-time 1:1 and group chat with optimistic send
+- Message states: sending → sent → delivered → read
+- Offline-first with Room + WorkManager retry queue
+- Image sharing via Firebase Storage
+- Foreground push notifications (FCM)
 
-1. Install dependencies
+### Tech Stack
+- Android: Kotlin, Jetpack Compose, Navigation, Hilt, Room, WorkManager
+- Firebase: Auth, Firestore, Realtime Database (presence), Storage, Cloud Messaging (+ Cloud Functions)
+- Concurrency: Coroutines + Flow
+- Images: Coil
 
-   ```bash
-   npm install
-   ```
+### Repository Layout
+- `app/` — Android application (Gradle module)
+- `firebase-functions/` — Cloud Functions (notifications, AI gateway)
+- `docs/` — Product and architecture docs
+- `memory-bank/` — Project intelligence and working context
+- Note: An Expo scaffold exists but is legacy; the Android Kotlin app is authoritative.
 
-2. Start the app
+### Prerequisites
+- Android Studio (latest stable; Koala+ recommended)
+- JDK 17 (toolchain enforced)
+- Gradle 8.11.x (wrapper provided)
+- Android Gradle Plugin 8.10.x / Kotlin 2.0.21 (configured)
+- Firebase project with Android app `com.messageai.tactical`
+- `google-services.json` for each flavor:
+  - `app/src/dev/google-services.json`
+  - `app/src/prod/google-services.json`
 
-   ```bash
-   npx expo start
-   ```
+### Setup
+1. Clone and open in Android Studio.
+2. Ensure `local.properties` has a valid `sdk.dir`.
+3. Add Firebase `google-services.json` files to `app/src/dev` and `app/src/prod`.
+4. Sync Gradle.
 
-In the output, you'll find options to open the app in a
+### Run
+- Android Studio: select the `devDebug` variant and run on an emulator/device.
+- CLI (Windows PowerShell):
+  ```powershell
+  .\gradlew assembleDevDebug
+  .\gradlew installDevDebug
+  ```
+- CLI (macOS/Linux):
+  ```bash
+  ./gradlew assembleDevDebug
+  ./gradlew installDevDebug
+  ```
+- Helpers:
+  ```bash
+  ./gradlew runDev      # assemble, install, and launch Dev Debug on default device
+  ./gradlew runDevAll   # deploy Dev Debug to all active devices/emulators
+  ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### Quick Checks
 ```bash
-npm run reset-project
+# Fast compile validation
+./gradlew :app:compileDevDebugKotlin
+
+# Lint (dev flavor)
+./gradlew :app:lintDevDebug
+
+# Unit / Instrumentation tests (if present)
+./gradlew testDevDebugUnitTest
+./gradlew connectedDevDebugAndroidTest
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Documentation
+- Product requirements: `docs/product/messageai-kotlin-prd.md`
+- Sprint PRD: `docs/product/messageai-sprint2-prd.md`
+- Architecture diagram: `docs/product/messageai-architecture-v2.mermaid`
+- Sprint task plan: `docs/product/messageai-sprint2-task-plan.md`
 
-## Learn more
+### Troubleshooting
+- Keep Compose, Kotlin (2.0.21), and AGP (8.10.x) aligned.
+- Ensure `google-services.json` package matches the active flavor applicationId.
+- Read the first error first; later errors often cascade.
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### License
+TBD
