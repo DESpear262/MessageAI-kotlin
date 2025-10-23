@@ -65,6 +65,9 @@ android {
             // Namespace per-flavor to avoid manifest pkg usage
             @Suppress("UnstableApiUsage")
             namespace = "com.messageai.tactical.dev"
+            // AI feature flags & Cloud Function base URL (dev)
+            buildConfigField("boolean", "AI_ENABLED", "true")
+            buildConfigField("String", "CF_BASE_URL", "\"https://us-central1-your-project.cloudfunctions.net/\"")
             // This is where your dev google-services.json lives
             // app/src/dev/google-services.json
         }
@@ -73,6 +76,9 @@ android {
             // No suffix — matches prod google-services.json client
             @Suppress("UnstableApiUsage")
             namespace = "com.messageai.tactical"
+            // AI feature flags & Cloud Function base URL (prod)
+            buildConfigField("boolean", "AI_ENABLED", "true")
+            buildConfigField("String", "CF_BASE_URL", "\"https://us-central1-your-project.cloudfunctions.net/\"")
             // app/src/prod/google-services.json
         }
     }
@@ -173,6 +179,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
     // Kotlinx Serialization (JSON)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // ----- Networking: Retrofit + OkHttp + Moshi -----
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
 
 
     // ----- Testing (optional placeholders) -----
