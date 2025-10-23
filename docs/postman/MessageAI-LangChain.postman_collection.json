@@ -1,0 +1,85 @@
+{
+  "info": {
+    "name": "MessageAI LangChain Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Healthz",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8080/healthz"
+      }
+    },
+    {
+      "name": "Template Generate (MEDEVAC)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000000\",\n  \"context\": { \"chatId\": \"chat123\" },\n  \"payload\": { \"type\": \"MEDEVAC\", \"maxMessages\": 50 }\n}"
+        },
+        "url": "http://localhost:8080/template/generate"
+      }
+    },
+    {
+      "name": "Threats Extract",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000001\",\n  \"context\": { \"chatId\": \"chat123\" },\n  \"payload\": { \"maxMessages\": 100 }\n}"
+        },
+        "url": "http://localhost:8080/threats/extract"
+      }
+    },
+    {
+      "name": "SITREP Summarize",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000002\",\n  \"context\": { \"chatId\": \"chat123\" },\n  \"payload\": { \"timeWindow\": \"6h\" }\n}"
+        },
+        "url": "http://localhost:8080/sitrep/summarize"
+      }
+    },
+    {
+      "name": "CASEVAC Intent Detect",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000003\",\n  \"context\": { \"chatId\": \"chat123\" },\n  \"payload\": { }\n}"
+        },
+        "url": "http://localhost:8080/intent/casevac/detect"
+      }
+    },
+    {
+      "name": "CASEVAC Workflow Run",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000004\",\n  \"context\": { \"chatId\": \"chat123\" },\n  \"payload\": { \"priority\": \"urgent\" }\n}"
+        },
+        "url": "http://localhost:8080/workflow/casevac/run"
+      }
+    }
+  ]
+}

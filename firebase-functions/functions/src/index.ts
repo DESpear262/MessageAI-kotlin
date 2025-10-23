@@ -170,7 +170,7 @@ export const sendGroupPushNotification = onDocumentCreated(
   }
 );
 
-// --- HTTPS proxy to OpenAI (keeps API key on the server) ---------------------
+// --- HTTPS proxies -----------------------------------------------------------
 const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 
 export const openaiProxy = onRequest({ cors: true, secrets: [OPENAI_API_KEY] }, async (req, res) => {
@@ -221,8 +221,54 @@ export const openaiProxy = onRequest({ cors: true, secrets: [OPENAI_API_KEY] }, 
   }
 });
 
+// aiRouter (simple): forwards client envelopes to LangChain service without exposing keys
+export const aiRouterSimple = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).send('Method Not Allowed');
+      return;
+    }
+    res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
+
+    const targetPath = (req.query.path as string) || '';
+    if (!targetPath) {
+      res.status(400).json({ error: 'Missing path query param' });
+      return;
+    }
+    const baseUrl = process.env.LANGCHAIN_BASE_URL as string | undefined;
+    if (!baseUrl) {
+      res.status(500).json({ error: 'LANGCHAIN_BASE_URL not configured' });
+      return;
+    }
+
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const fetchFn: any = (globalThis as any).fetch;
+
+    const upstream = await fetchFn(`${baseUrl.replace(/\/$/, '')}/${targetPath}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Forward Firebase ID token if present; service may ignore or log
+        'Authorization': req.headers.authorization || '',
+        'x-request-id': body?.requestId || '',
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? 'Unknown error' });
+  }
+});
+
 // --- AI Router to LangChain service ------------------------------------------
-const LANGCHAIN_BASE_URL = defineString('LANGCHAIN_BASE_URL');
 const LANGCHAIN_SHARED_SECRET = defineSecret('LANGCHAIN_SHARED_SECRET');
 const ALLOWED_ORIGINS = defineString('ALLOWED_ORIGINS'); // comma‑separated
 
@@ -306,8 +352,10 @@ async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: n
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const baseUrl = process.env.LANGCHAIN_BASE_URL as string | undefined;
+    if (!baseUrl) { throw new Error('LANGCHAIN_BASE_URL not set'); }
     const fetchFn: any = (globalThis as any).fetch;
-    const res = await fetchFn(`${LANGCHAIN_BASE_URL.value().replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
+    const res = await fetchFn(`${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

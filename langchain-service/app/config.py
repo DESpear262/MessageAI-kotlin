@@ -1,0 +1,10 @@
+import os
+
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+FIRESTORE_PROJECT_ID = os.getenv("FIRESTORE_PROJECT_ID", "")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "messageai-langchain")
+
+
