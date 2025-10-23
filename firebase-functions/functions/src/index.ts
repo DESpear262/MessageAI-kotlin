@@ -6,7 +6,9 @@
  */
 import * as admin from 'firebase-admin';
 // import { user, UserRecord } from 'firebase-functions/v1/auth';
+import { defineSecret } from 'firebase-functions/params';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onRequest } from 'firebase-functions/v2/https';
 
 admin.initializeApp();
 
@@ -166,6 +168,57 @@ export const sendGroupPushNotification = onDocumentCreated(
     }
   }
 );
+
+// --- HTTPS proxy to OpenAI (keeps API key on the server) ---------------------
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+
+export const openaiProxy = onRequest({ cors: true, secrets: [OPENAI_API_KEY] }, async (req, res) => {
+  try {
+    // Basic CORS/preflight support
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).send('Method Not Allowed');
+      return;
+    }
+
+    res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
+
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+
+    // Use global fetch without TS type dependency
+    const fetchFn: any = (globalThis as any).fetch;
+
+    const response = await fetchFn('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY.value()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: body.model ?? 'gpt-4o-mini',
+        messages: body.messages ?? [{ role: 'user', content: body.prompt ?? '' }],
+        temperature: body.temperature ?? 0.7,
+        max_tokens: body.max_tokens ?? 512,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      res.status(response.status).json({ error: data });
+      return;
+    }
+    res.status(200).json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? 'Unknown error' });
+  }
+});
 
 /** Update user presence on auth user deletion. */
 // Temporarily disabled - v1 auth triggers causing deployment issues
