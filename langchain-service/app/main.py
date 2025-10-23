@@ -16,11 +16,13 @@ from .schemas import (
 )
 from .providers import OpenAIProvider
 from .firestore_client import FirestoreReader
+from .rag import RAGCache
 
 
 app = FastAPI(title="MessageAI LangChain Service", version="0.1.0")
 llm = OpenAIProvider()
 fs = FirestoreReader()
+rag = RAGCache(llm)
 
 
 def _ok(request_id: str, data: Dict[str, Any]) -> JSONResponse:
@@ -49,6 +51,7 @@ def generate_template(body: AiRequestEnvelope):
     template_type = str(payload.get("type", "MEDEVAC")).upper()
     chat_id = (body.context or {}).get("chatId")
     messages = fs.fetch_recent_messages(chat_id, limit=int(payload.get("maxMessages", 50)))
+    rag.index_messages(messages)
 
     # Build minimal MEDEVAC fields from template file definitions
     required_fields = [
@@ -75,6 +78,8 @@ def threats_extract(body: AiRequestEnvelope):
     max_messages = int((body.payload or {}).get("maxMessages", 100))
     _ = fs.fetch_recent_messages(chat_id, limit=max_messages)
     # Placeholder response
+    # Very lightweight heuristic: use RAG context to prime LLM (if enabled) for structured extraction in future
+    rag.index_messages(_)
     data = ThreatsData(threats=[]).model_dump()
     return _ok(request_id, data)
 
@@ -85,9 +90,16 @@ def sitrep_summarize(body: AiRequestEnvelope):
     payload = body.payload or {}
     time_window = payload.get("timeWindow", "6h")
     chat_id = (body.context or {}).get("chatId")
-    _ = fs.fetch_recent_messages(chat_id, limit=200)
-    # Minimal sectioned markdown
-    md = "# SITREP\n\n- Time Window: {}\n".format(time_window)
+    msgs = fs.fetch_recent_messages(chat_id, limit=200)
+    rag.index_messages(msgs)
+    query = f"Summarize the last {time_window} of unit activity into a SITREP."
+    context = rag.build_context(query)
+    prompt = f"Context messages:\n{context}\n\nTask: {query}"
+    summary = llm.chat(
+        system_prompt="You summarize tactical chat into concise SITREPs in markdown.",
+        user_prompt=prompt,
+    )
+    md = summary or "# SITREP\n\n- Time Window: {}\n".format(time_window)
     data = SitrepTemplateData(format="markdown", content=md, sections=[]).model_dump()
     return _ok(request_id, data)
 
