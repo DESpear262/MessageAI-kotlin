@@ -6,9 +6,10 @@
  */
 import * as admin from 'firebase-admin';
 // import { user, UserRecord } from 'firebase-functions/v1/auth';
-import { defineSecret } from 'firebase-functions/params';
+import { defineSecret, defineString } from 'firebase-functions/params';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
+import crypto from 'node:crypto';
 
 admin.initializeApp();
 
@@ -217,6 +218,190 @@ export const openaiProxy = onRequest({ cors: true, secrets: [OPENAI_API_KEY] }, 
     res.status(200).json(data);
   } catch (e: any) {
     res.status(500).json({ error: e?.message ?? 'Unknown error' });
+  }
+});
+
+// --- AI Router to LangChain service ------------------------------------------
+const LANGCHAIN_BASE_URL = defineString('LANGCHAIN_BASE_URL');
+const LANGCHAIN_SHARED_SECRET = defineSecret('LANGCHAIN_SHARED_SECRET');
+const ALLOWED_ORIGINS = defineString('ALLOWED_ORIGINS'); // comma‑separated
+
+type Envelope = {
+  requestId: string;
+  context: Record<string, unknown>;
+  payload: Record<string, unknown>;
+};
+
+// naive in-memory token bucket (cold start resets) per uid
+const buckets: Record<string, { tokens: number; lastRefillMs: number }> = {};
+const RATE_PER_MIN = 10;
+const BURST = 20;
+
+function refill(uid: string, now: number) {
+  const b = buckets[uid] ?? { tokens: BURST, lastRefillMs: now };
+  const elapsedMin = (now - b.lastRefillMs) / 60000;
+  const newTokens = Math.floor(elapsedMin * RATE_PER_MIN);
+  if (newTokens > 0) {
+    b.tokens = Math.min(BURST, b.tokens + newTokens);
+    b.lastRefillMs = now;
+  }
+  buckets[uid] = b;
+}
+
+function take(uid: string): boolean {
+  const now = Date.now();
+  refill(uid, now);
+  const b = buckets[uid]!;
+  if (b.tokens > 0) {
+    b.tokens -= 1;
+    return true;
+  }
+  return false;
+}
+
+function cors(req: any, res: any): boolean {
+  const allowList = (ALLOWED_ORIGINS.value() || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const origin = req.headers.origin || '';
+  const allow = allowList.length === 0 || allowList.includes('*') || allowList.includes(origin);
+  if (allow) {
+    res.set('Access-Control-Allow-Origin', origin || '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return true;
+  }
+  return false;
+}
+
+async function verifyIdToken(req: any): Promise<string> {
+  const authz = req.headers['authorization'] || req.headers['Authorization'];
+  if (!authz || typeof authz !== 'string' || !authz.startsWith('Bearer ')) {
+    throw new Error('unauthorized');
+  }
+  const token = authz.substring('Bearer '.length);
+  const decoded = await admin.auth().verifyIdToken(token);
+  return decoded.uid;
+}
+
+function buildEnvelope(uid: string, body: any): Envelope {
+  const requestId = (body && body.requestId) || crypto.randomUUID();
+  const payload = (body && body.payload && typeof body.payload === 'object') ? body.payload : (body || {});
+  const context = { ...(body?.context || {}), uid } as Record<string, unknown>;
+  return { requestId, context, payload };
+}
+
+function sign(envelope: Envelope): { sig: string; ts: string } {
+  const ts = Date.now().toString();
+  const payloadHash = crypto.createHash('sha256').update(JSON.stringify(envelope.payload)).digest('hex');
+  const base = `${envelope.requestId}.${ts}.${payloadHash}`;
+  const secret = LANGCHAIN_SHARED_SECRET.value();
+  const sig = crypto.createHmac('sha256', secret).update(base).digest('hex');
+  return { sig, ts };
+}
+
+async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: number): Promise<Response> {
+  const { sig, ts } = sign(envelope);
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const fetchFn: any = (globalThis as any).fetch;
+    const res = await fetchFn(`${LANGCHAIN_BASE_URL.value().replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-request-id': envelope.requestId,
+        'x-uid': String(envelope.context['uid'] ?? ''),
+        'x-sig': sig,
+        'x-sig-ts': ts,
+      },
+      body: JSON.stringify(envelope),
+      signal: controller.signal,
+    });
+    return res as Response;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function routeToPath(reqPath: string): { path: string; timeoutMs: number } | null {
+  const p = reqPath.replace(/^\//, '');
+  const fast = 10000; // 10s
+  const slow = 30000; // 30s
+  switch (p) {
+    case 'v1/template/generate':
+      return { path: 'template/generate', timeoutMs: fast };
+    case 'v1/threats/extract':
+      return { path: 'threats/extract', timeoutMs: fast };
+    case 'v1/sitrep/summarize':
+      return { path: 'sitrep/summarize', timeoutMs: slow };
+    case 'v1/intent/casevac/detect':
+      return { path: 'intent/casevac/detect', timeoutMs: fast };
+    case 'v1/workflow/casevac/run':
+      return { path: 'workflow/casevac/run', timeoutMs: slow };
+    default:
+      return null;
+  }
+}
+
+export const aiRouter = onRequest({ cors: true, secrets: [LANGCHAIN_SHARED_SECRET] }, async (req, res) => {
+  // CORS / preflight
+  if (cors(req, res)) return;
+
+  // Method
+  if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
+
+  // Auth (ID token only; no role checks)
+  let uid: string;
+  try {
+    uid = await verifyIdToken(req);
+  } catch {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  // Rate limit
+  if (!take(uid)) { res.status(429).json({ error: 'Rate limit exceeded' }); return; }
+
+  // Route
+  const route = routeToPath((req.path || '').replace(/^\/+aiRouter\/?/, '')); // normalize if provider includes function name
+  const fallbackRoute = route || routeToPath((req.path || '').replace(/^\//, ''));
+  const target = fallbackRoute;
+  if (!target) { res.status(404).json({ error: 'Unknown endpoint' }); return; }
+
+  // Body and size cap (~64KB)
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  const approxBytes = Buffer.byteLength(JSON.stringify(body), 'utf8');
+  if (approxBytes > 64 * 1024) { res.status(413).json({ error: 'Payload too large' }); return; }
+
+  // Envelope
+  const envelope = buildEnvelope(uid, body);
+
+  const started = Date.now();
+  try {
+    const upstream = await forwardToLangChain(target.path, envelope, target.timeoutMs);
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+    console.log(JSON.stringify({
+      level: 'info',
+      requestId: envelope.requestId,
+      uid,
+      endpoint: target.path,
+      latencyMs: Date.now() - started,
+      status: upstream.status,
+    }));
+  } catch (e: any) {
+    const code = e?.name === 'AbortError' ? 504 : 502;
+    res.status(code).json({ error: e?.message || 'Upstream error' });
+    console.error(JSON.stringify({
+      level: 'error',
+      requestId: envelope.requestId,
+      uid,
+      endpoint: target.path,
+      latencyMs: Date.now() - started,
+      error: e?.message || String(e),
+    }));
   }
 });
 
