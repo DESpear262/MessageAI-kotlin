@@ -1,0 +1,50 @@
+package com.messageai.tactical.modules.reporting
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+
+@Composable
+fun ReportPreviewScreen(
+    chatId: String?,
+    kind: String, // "sitrep" | "warnord" | "opord" | "frago"
+    onShare: (String) -> Unit,
+    viewModel: ReportViewModel = hiltViewModel()
+) {
+    val md by viewModel.markdown.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+
+    LaunchedEffect(kind, chatId) {
+        when (kind.lowercase()) {
+            "sitrep" -> viewModel.loadSitrep(chatId ?: "", "6h")
+            "warnord", "opord", "frago" -> viewModel.loadTemplate(kind)
+        }
+    }
+
+    Scaffold(topBar = {
+        TopAppBar(title = { Text(text = "Report Preview") })
+    }, floatingActionButton = {
+        if (!loading && !md.isNullOrBlank()) {
+            FloatingActionButton(onClick = { onShare(md!!) }) {
+                Text("Share")
+            }
+        }
+    }) { padding ->
+        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+            if (loading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(text = md ?: "", fontFamily = FontFamily.Monospace)
+        }
+    }
+}
+
+

@@ -119,6 +119,12 @@ This repo includes a local LangChain-style FastAPI service and a Cloud Functions
   ```
 
 ### Android emulator vs local host
+- Block D endpoints (markdown-only)
+  - POST /v1/template/warnord → WARNORD markdown
+  - POST /v1/template/opord → OPORD markdown
+  - POST /v1/template/frago → FRAGO markdown
+  - POST /v1/sitrep/summarize → SITREP markdown
+
 
 - Android emulator cannot reach `127.0.0.1` on your machine; use `10.0.2.2` instead.
 - Example Cloud Functions base URL (emulator):
