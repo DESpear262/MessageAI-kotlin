@@ -8,14 +8,17 @@
 - Images: Coil (compose) + ExifInterface (for metadata handling/rotation if needed).
 - Concurrency: Coroutines + Flow.
 - Background: WorkManager (+ Hilt integration).
+- LangChain Service: FastAPI (Python 3.11), OpenAI SDK, Google Cloud Firestore client, Docker, Cloud Run.
 
 ## Build & Deps (effective)
 - Gradle Kotlin DSL; compose BOM 2024.09.02; Firebase BoM 33.4.0; Room 2.6.1; Hilt 2.51.1; WorkManager 2.9.0; Coil 2.5.0; DataStore 1.0.0; Coroutines 1.9.0; Paging 3.3.2; exifinterface 1.3.7.
+- Python: fastapi 0.115.0; uvicorn 0.30.x; google-cloud-firestore 2.16.0; openai 1.51.x; pydantic 2.9.x.
 
 ## Dev Setup
 - Android Studio; compileSdk 35; minSdk 24.
 - Firebase project with Auth/Firestore/Storage/FCM; add `google-services.json` to app module per flavor.
 - Firestore offline persistence enabled; notification channel created at app start.
+- LangChain service runs locally via `uvicorn` or Docker; env vars `OPENAI_API_KEY`, `FIRESTORE_PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS`.
 
 ## Repo Note
 - This repo also includes a React Native/Expo scaffold (TypeScript). Kotlin Android is the target for this implementation; ignore JS artifacts for Android app, but include them in .gitignore.

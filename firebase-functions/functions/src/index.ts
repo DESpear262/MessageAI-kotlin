@@ -242,11 +242,7 @@ export const aiRouterSimple = onRequest({ cors: true }, async (req, res) => {
       res.status(400).json({ error: 'Missing path query param' });
       return;
     }
-    const baseUrl = process.env.LANGCHAIN_BASE_URL as string | undefined;
-    if (!baseUrl) {
-      res.status(500).json({ error: 'LANGCHAIN_BASE_URL not configured' });
-      return;
-    }
+    const baseUrl = (process.env.LANGCHAIN_BASE_URL as string | undefined) || 'http://127.0.0.1:8000';
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const fetchFn: any = (globalThis as any).fetch;
@@ -352,8 +348,7 @@ async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: n
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const baseUrl = process.env.LANGCHAIN_BASE_URL as string | undefined;
-    if (!baseUrl) { throw new Error('LANGCHAIN_BASE_URL not set'); }
+    const baseUrl = (process.env.LANGCHAIN_BASE_URL as string | undefined) || 'http://127.0.0.1:8000';
     const fetchFn: any = (globalThis as any).fetch;
     const res = await fetchFn(`${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
       method: 'POST',
