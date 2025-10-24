@@ -44,6 +44,7 @@ import com.messageai.tactical.data.remote.PresenceService
 import com.messageai.tactical.data.remote.model.MessageDoc
 import com.messageai.tactical.ui.components.PresenceDot
 import com.messageai.tactical.util.CameraHelper
+import com.messageai.tactical.modules.geo.GeoService
 import com.messageai.tactical.util.ParticipantHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.map
@@ -134,7 +135,12 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         Text(title)
                     }
                 },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }
+                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                actions = {
+                    // Testing-only: summarize threats in current area
+                    val geo = androidx.hilt.navigation.compose.hiltViewModel<GeoViewModel>()
+                    TextButton(onClick = { geo.summarizeNearby() }) { Text("Summarize threats") }
+                }
             )
         }
     ) { padding ->
