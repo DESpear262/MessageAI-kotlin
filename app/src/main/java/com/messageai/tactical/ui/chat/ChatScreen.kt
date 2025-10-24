@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.collect
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.catch
+import android.util.Log
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.messageai.tactical.data.db.ChatDao
@@ -136,6 +138,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
         }
             .map { (indices, snapshots) ->
                 if (vm.myUid == null) return@map emptyList<String>()
+                if (snapshots.size == 0) return@map emptyList<String>()
                 val size = snapshots.size
                 indices
                     .filter { it >= 0 && it < size }
@@ -146,6 +149,9 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                     .distinct()
             }
             .distinctUntilChanged()
+            .catch { e ->
+                Log.e("ChatScreen", "Visibility flow error", e)
+            }
             .collect { visibleIds ->
                 if (visibleIds.isNotEmpty()) {
                     vm.markMessagesRead(chatId, visibleIds, scope)
