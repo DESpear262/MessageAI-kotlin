@@ -187,6 +187,11 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
 
+    // ----- Google Play Services (Location/Maps) -----
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+
 
     // ----- Testing (optional placeholders) -----
     testImplementation("junit:junit:4.13.2")
