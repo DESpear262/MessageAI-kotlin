@@ -29,6 +29,10 @@ class GeoViewModel @Inject constructor(
             }
         }
     }
+
+    fun analyzeChatThreats(chatId: String) {
+        geo.analyzeChatThreats(chatId) { /* count -> could show a toast/snackbar */ }
+    }
 }
 
 

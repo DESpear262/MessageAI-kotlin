@@ -206,6 +206,9 @@ dependencies {
 
     // ----- EXIF (for stripping/rotation/HEIC handling) -----
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    // ----- Location (for Geo features used elsewhere) -----
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
 
 // Keep Kotlin at 17 for all Kotlin compile tasks (covers KSP too)

@@ -5,6 +5,7 @@ import com.messageai.tactical.modules.ai.IAIProvider
 import com.messageai.tactical.modules.ai.RagContextBuilder
 import com.messageai.tactical.modules.ai.api.LangChainApi
 import com.messageai.tactical.modules.ai.provider.LangChainAdapter
+import com.messageai.tactical.modules.reporting.ReportService
 import com.messageai.tactical.modules.ai.provider.LocalProvider
 import com.messageai.tactical.data.db.AppDatabase
 import com.messageai.tactical.BuildConfig
@@ -75,6 +76,10 @@ object AIModule {
     fun provideAIService(db: AppDatabase, provider: IAIProvider, adapter: LangChainAdapter, builder: RagContextBuilder): AIService {
         return AIService(dao = db.messageDao(), provider = provider, adapter = adapter, contextBuilder = builder)
     }
+
+    @Provides
+    @Singleton
+    fun provideReportService(adapter: LangChainAdapter): ReportService = ReportService(adapter)
 }
 
 

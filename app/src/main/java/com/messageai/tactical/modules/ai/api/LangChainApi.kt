@@ -21,6 +21,15 @@ interface LangChainApi {
     @POST("template/generate")
     suspend fun generateTemplate(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
 
+    @POST("template/warnord")
+    suspend fun generateWarnord(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+
+    @POST("template/opord")
+    suspend fun generateOpord(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+
+    @POST("template/frago")
+    suspend fun generateFrago(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+
     @POST("threats/extract")
     suspend fun extractThreats(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
 

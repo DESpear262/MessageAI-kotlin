@@ -14,6 +14,9 @@ class LangChainAdapter(private val api: LangChainApi) {
         )
         return when (path) {
             "template/generate" -> api.generateTemplate(req)
+            "template/warnord" -> api.generateWarnord(req)
+            "template/opord" -> api.generateOpord(req)
+            "template/frago" -> api.generateFrago(req)
             "threats/extract" -> api.extractThreats(req)
             "sitrep/summarize" -> api.summarizeSitrep(req)
             "intent/casevac/detect" -> api.detectCasevac(req)

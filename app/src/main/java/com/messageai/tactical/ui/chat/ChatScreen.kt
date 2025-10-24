@@ -140,6 +140,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                     // Testing-only: summarize threats in current area
                     val geo = androidx.hilt.navigation.compose.hiltViewModel<GeoViewModel>()
                     TextButton(onClick = { geo.summarizeNearby() }) { Text("Summarize threats") }
+                    // Testing-only: invoke AI summarization and persist to Firestore
+                    TextButton(onClick = { geo.analyzeChatThreats(chatId) }) { Text("AI summarize") }
                     TextButton(onClick = { com.messageai.tactical.data.remote.GeofenceWorker.enqueue(context) }) { Text("Check geofence") }
                 }
             )

@@ -375,6 +375,12 @@ function routeToPath(reqPath: string): { path: string; timeoutMs: number } | nul
   switch (p) {
     case 'v1/template/generate':
       return { path: 'template/generate', timeoutMs: fast };
+    case 'v1/template/warnord':
+      return { path: 'template/warnord', timeoutMs: fast };
+    case 'v1/template/opord':
+      return { path: 'template/opord', timeoutMs: fast };
+    case 'v1/template/frago':
+      return { path: 'template/frago', timeoutMs: fast };
     case 'v1/threats/extract':
       return { path: 'threats/extract', timeoutMs: fast };
     case 'v1/sitrep/summarize':

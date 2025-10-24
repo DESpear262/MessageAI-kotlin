@@ -3,6 +3,7 @@ package com.messageai.tactical.modules.geo
 import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.messageai.tactical.modules.ai.AIService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,8 +19,9 @@ object GeoModule {
     fun provideGeoService(
         @ApplicationContext context: Context,
         firestore: FirebaseFirestore,
-        auth: FirebaseAuth
-    ): GeoService = GeoService(context, firestore, auth)
+        auth: FirebaseAuth,
+        aiService: AIService
+    ): GeoService = GeoService(context, firestore, auth, aiService)
 }
 
 
