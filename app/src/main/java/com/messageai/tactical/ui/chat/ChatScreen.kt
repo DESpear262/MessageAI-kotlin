@@ -129,35 +129,14 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
         vm.markAsRead(chatId)
     }
 
-    // Mark fully visible messages as read as the user scrolls
-    LaunchedEffect(listState, vm.myUid) {
-        snapshotFlow {
-            val indices = listState.layoutInfo.visibleItemsInfo.map { it.index }
-            val snapshots = messages.itemSnapshotList
-            indices to snapshots
-        }
-            .map { (indices, snapshots) ->
-                if (vm.myUid == null) return@map emptyList<String>()
-                if (snapshots.size == 0) return@map emptyList<String>()
-                val size = snapshots.size
-                indices
-                    .filter { it >= 0 && it < size }
-                    .mapNotNull { idx ->
-                        val item = try { snapshots[idx] } catch (_: Exception) { null }
-                        if (item != null && item.senderId != vm.myUid) item.id else null
-                    }
-                    .distinct()
-            }
-            .distinctUntilChanged()
-            .catch { e ->
-                Log.e("ChatScreen", "Visibility flow error", e)
-            }
-            .collect { visibleIds ->
-                if (visibleIds.isNotEmpty()) {
-                    vm.markMessagesRead(chatId, visibleIds, scope)
-                }
-            }
-    }
+    /*
+     * BUG NOTE (temporary workaround):
+     * Precise unread decrementor via visibility tracking is disabled for now due to
+     * intermittent paging snapshot index issues reported in testing. We currently
+     * clear unread count on chat open instead. Re-enable after fixing underlying bug.
+     *
+     * // LaunchedEffect(listState, vm.myUid) { ... }
+     */
     DisposableEffect(chatId) {
         onDispose { vm.stopListener() }
     }
