@@ -69,6 +69,75 @@ A tactical messaging app focused on reliable, real-time communication with offli
 ./gradlew connectedDevDebugAndroidTest
 ```
 
+### Local AI (LangChain) + Cloud Functions Emulator
+
+This repo includes a local LangChain-style FastAPI service and a Cloud Functions proxy for secure calls from the Android app.
+
+1) Start LangChain service (FastAPI)
+- Terminal 1
+  - Windows PowerShell:
+    ```powershell
+    cd .\langchain-service
+    python -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    pip install -r requirements.txt
+    uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+    ```
+  - macOS/Linux:
+    ```bash
+    cd langchain-service
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+    ```
+
+2) Start Firebase Functions emulator
+- Terminal 2 (repo root):
+  ```bash
+  npx --yes firebase-tools@latest emulators:start --only functions
+  ```
+  Notes:
+  - The proxy defaults to `http://127.0.0.1:8000` if `LANGCHAIN_BASE_URL` is not set.
+  - `OPENAI_API_KEY` and `LANGCHAIN_SHARED_SECRET` can be configured as Firebase secrets/params for deployed environments; for local dev, defaults are sufficient.
+
+3) Smoke-test the proxy
+- Simple router (no auth):
+  ```bash
+  curl -X POST \
+    "http://127.0.0.1:5001/messageai-kotlin/us-central1/aiRouterSimple?path=template/generate" \
+    -H "Content-Type: application/json" \
+    -d '{"requestId":"test-1","context":{"chatId":"demo"},"payload":{"type":"MEDEVAC","maxMessages":20}}'
+  ```
+- Secure router (requires Firebase ID token):
+  ```bash
+  curl -X POST \
+    "http://127.0.0.1:5001/messageai-kotlin/us-central1/aiRouter/v1/template/generate" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer <FIREBASE_ID_TOKEN>" \
+    -d '{"requestId":"test-2","context":{"chatId":"demo"},"payload":{"type":"MEDEVAC","maxMessages":20}}'
+  ```
+
+### Android emulator vs local host
+
+- Android emulator cannot reach `127.0.0.1` on your machine; use `10.0.2.2` instead.
+- Example Cloud Functions base URL (emulator):
+  - `http://10.0.2.2:5001/messageai-kotlin/us-central1/aiRouter/`
+  - `http://10.0.2.2:5001/messageai-kotlin/us-central1/aiRouterSimple?path=...`
+- Physical device: use your computer’s LAN IP instead of `10.0.2.2`.
+
+To switch the Android dev build to the emulator host:
+- Open `app/build.gradle.kts` and set the dev flavor `CF_BASE_URL` to the emulator URL:
+  ```kotlin
+  productFlavors {
+      create("dev") {
+          // ...
+          buildConfigField("String", "CF_BASE_URL", "\"http://10.0.2.2:5001/messageai-kotlin/us-central1/\"")
+      }
+  }
+  ```
+- Rebuild and run the `devDebug` variant. The app’s Retrofit client will call the emulator.
+
 ### Documentation
 - Product requirements: `docs/product/messageai-kotlin-prd.md`
 - Sprint PRD: `docs/product/messageai-sprint2-prd.md`

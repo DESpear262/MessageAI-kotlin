@@ -15,10 +15,11 @@
 - Queue with WorkManager (OneTime for per-message, Periodic for batch sync); exponential backoff.
 - Firestore for realtime sync; enable Firestore offline persistence. Optional RTDB for ephemeral presence/typing.
 - Media via Firebase Storage; Coil for caching and display.
- - AI: Separate REST paths behind Cloud Function proxy; request envelope `{requestId, context, payload}` and matching response envelope; requestId logged client-side.
-- Conflict resolution: Last-write-wins by timestamp for MVP.
-- Data docs include `metadata: Map<String, Any>` for extensibility.
-- Notifications: Prefer in-app Snackbar banner with preview when foreground. Use system notification fallback when app is backgrounded. Store `fcmToken` on user doc at sign-in and on token refresh.
+- AI: Separate REST paths behind Cloud Function proxy; request envelope `{requestId, context, payload}` and matching response envelope; requestId logged client-side.
+- CF AI Gateway:
+  - `aiRouter` (/v1/*) with Firebase ID token verification, HMAC signing headers (`x-sig`, `x-sig-ts`), per‑UID token-bucket rate limiting, 64KB payload cap, per-endpoint timeouts, structured logs.
+  - `aiRouterSimple?path=...` for local testing.
+  - Defaults to local `http://127.0.0.1:8000` when `LANGCHAIN_BASE_URL` is not set.
 
 ## Media Pipeline Patterns
 - Deterministic storage paths: `chat-media/{chatId}/{messageId}.jpg` using deterministic chat IDs and UUID message IDs.
