@@ -35,20 +35,39 @@ class GeofenceWorker @AssistedInject constructor(
             if (loc != null) {
                 geo.checkGeofenceEnter(loc.latitude, loc.longitude) { /* alerts happen in service */ }
             }
+            // Schedule next run in ~5 minutes
+            scheduleNext(applicationContext)
             Result.success()
         } catch (_: Exception) {
+            scheduleNext(applicationContext)
             Result.retry()
         }
     }
 
     companion object {
+        private const val UNIQUE_NAME = "geo_geofence_check"
+
         fun enqueue(context: Context) {
             val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
             val req = OneTimeWorkRequestBuilder<GeofenceWorker>()
                 .setConstraints(constraints)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork("geo_geofence_check", ExistingWorkPolicy.KEEP, req)
+            WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_NAME, ExistingWorkPolicy.KEEP, req)
+        }
+
+        fun scheduleRecurring5m(context: Context) {
+            scheduleNext(context)
+        }
+
+        private fun scheduleNext(context: Context) {
+            val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+            val req = OneTimeWorkRequestBuilder<GeofenceWorker>()
+                .setConstraints(constraints)
+                .setInitialDelay(5, TimeUnit.MINUTES)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_NAME, ExistingWorkPolicy.REPLACE, req)
         }
     }
 }

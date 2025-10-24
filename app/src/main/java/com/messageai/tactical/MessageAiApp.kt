@@ -31,6 +31,8 @@ class MessageAiApp : Application(), Configuration.Provider {
         createNotificationChannel()
         // Start network heartbeat monitoring (cellular)
         try { networkHeartbeat.start() } catch (_: Exception) {}
+        // Start recurring geofence checks every ~5 minutes
+        try { com.messageai.tactical.data.remote.GeofenceWorker.scheduleRecurring5m(this) } catch (_: Exception) {}
         // Re-scan pending sends and enqueue
         CoroutineScope(Dispatchers.Default).launch {
             try {
