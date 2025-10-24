@@ -33,6 +33,20 @@
   ```
 - [ ] Clear existing missions/threats for clean test
 
+### Seeded Chats (Dev Data)
+- OPORD WOLVERINE (Captain Parker → Lieutenant Davis): Company-level OPORD for generating a platoon-level WARNO. Includes UAS/mortar PIR, OBJ HAWK 38T MN 2385 5650, LD 242000Z, CMD NET 30.000 MHz.
+- FRAGO 01 to WOLVERINE (Captain Parker → Lieutenant Davis): Addendum adjusting LD and CP 2A; use for FRAGO generation.
+- Patrol Chat A – AA PINE (Lieutenant Davis ↔ PSG Ortiz): SITREP-rich patrol with HLZ at MN 2349 5645, SMOKE GREEN, CMD NET 30.000 MHz; good for SITREP and 9-line pre-brief inputs (no injury).
+- Patrol Chat B – Mill Road, MOPP (Lieutenant Davis ↔ PSG Ortiz): MOPP discipline implied; HLZ at MN 2415 5628, SMOKE YELLOW; nationality mix (US + linguists). Use for SITREP and 9-line variant with NBC context implied.
+- OPORD ORYX (Captain Kim → Lieutenant Davis): Company-level OPORD for generating a full platoon-level OPORD and mission planner verification; HAMLETS SOUTH, BP ALPHA MN 2235 5568.
+- HLZ REED Contingency (Lieutenant Davis ↔ PSG Ortiz): River bend tertiary HLZ, panels marking; used to test extraction of alternative HLZs and irrelevant chatter.
+- Logistics Note (Captain Parker → Lieutenant Davis): LOGPAC timing and smoke guidance; extra chatter/noise for extraction robustness.
+- Pre-LD Comms (Lieutenant Davis ↔ PSG Ortiz): Isolation BP ALPHA set, school field HLZ at MN 2225 5566; contingency MEDEVAC pre-brief elements.
+
+Finding a seeded chat in app/Firestore
+- In app: open chat by participants (emails: cpt.t.parker@dev.mil, cpt.s.kim@dev.mil, lt.j.davis@dev.mil, psg.m.ortiz@dev.mil).
+- In Firestore: search `chats` where `participantDetails` names match the users above or filter by `lastMessage.text` with phrases like "OPORD WOLVERINE", "FRAGO 01", "MOPP", "HLZ".
+
 ### Build & Deploy
 ```bash
 # Build Android app
@@ -269,6 +283,9 @@ firebase functions:log --only aiRouter
 - ✅ Each threat has `summary`, `severity`, `confidence`, `geo`
 - ✅ Severity 1-5, confidence 0.0-1.0
 
+Seeded chat guidance
+- Use Patrol Chat A (Davis ↔ Ortiz, AA PINE). Contains mentions of possible scouts on MSR GREEN and UAS noise; good to validate recon/IDF-related threat extraction.
+
 **Pass/Fail:** ⬜
 
 ---
@@ -289,6 +306,9 @@ firebase functions:log --only aiRouter
 **Expected:**
 - ✅ Returns markdown SITREP
 - ✅ Contains sections (summary, activities, etc.)
+
+Seeded chat guidance
+- Prefer Patrol Chat A for a baseline SITREP (no NBC). Alternate: Patrol Chat B to verify NBC-adjacent operational impacts (MOPP 4, slower movement) are captured without explicit contamination claims.
 
 **Pass/Fail:** ⬜
 
@@ -418,6 +438,11 @@ firebase functions:log --only aiRouter
 - [ ] OPORD (Operations Order)
 - [ ] FRAGO (Fragmentary Order)
 
+Seeded chat guidance
+- WARNORD: Use OPORD WOLVERINE chat (Parker → Davis) as context to derive a platoon-level WARNO.
+- OPORD: Use OPORD ORYX chat (Kim → Davis) to generate a platoon-level OPORD (isolation mission, BP ALPHA MN 2235 5568).
+- FRAGO: Use FRAGO 01 to WOLVERINE (Parker → Davis) to produce a FRAGO reflecting LD/CP 2A changes.
+
 **Pass/Fail:** ⬜
 
 ---
@@ -533,6 +558,10 @@ CasevacWorker.enqueue(context, chatId = "chat-test", messageId = "msg-123")
 ```
 4. Monitor notifications and Firestore
 
+Seeded chat guidance
+- Use Patrol Chat A for baseline CASEVAC (HLZ MN 2349 5645, SMOKE GREEN, US Mil only). Add the actual injury message yourself to trigger intent.
+- Use Patrol Chat B (MOPP) to validate NBC-adjacent context handling (HLZ MN 2415 5628, SMOKE YELLOW, mixed nationality incl. linguists).
+
 **Expected Sequence:**
 - ✅ Step 1: Start notification shown ("CASEVAC started")
 - ✅ Step 2: MEDEVAC template generated (AI call)
@@ -583,6 +612,9 @@ adb logcat | grep -E "CasevacWorker|CasevacNotifier"
 - ✅ `AIService.detectIntent(chatId, 20)` returns `intent: "casevac"`
 - ✅ Confidence ≥ 0.7 (70%+)
 - ✅ Triggers list contains relevant keywords
+
+Seeded chat guidance
+- Send the trigger messages in Patrol Chat A or B. A = non-NBC baseline; B = MOPP context variant. Do not include the full 9-line—let the workflow generate it.
 
 **Pass/Fail:** ⬜
 
@@ -686,6 +718,9 @@ adb logcat | grep -E "CasevacWorker|CasevacNotifier"
 1. Send chat message: "Summarize recent patrol activity"
 2. Trigger SITREP generation
 3. Monitor full request chain
+
+Seeded chat guidance
+- Use Patrol Chat A for a clean SITREP summary. Alternate: Patrol Chat B to confirm SITREP includes MOPP-driven impacts (slower movement, lens fogging) without explicit contamination language.
 
 **Expected Chain:**
 ```
