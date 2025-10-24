@@ -26,6 +26,24 @@
   - QC Grade: A- (code quality), B+ (security), A (architecture)
   - Status: ✅ APPROVED FOR MVP DEPLOYMENT
   - QC Report: `docs/reviews/BLOCKS_B_B2_QC_REPORT.md`
+- **Block C: Geolocation Intelligence & Threat Alerts** — ✅ COMPLETE & QC APPROVED
+  - GeoService with AI integration (calls AIService.summarizeThreats())
+  - AI-based threat extraction via LangChain `/threats/extract`
+  - Signal loss alerts (2 missed heartbeats)
+  - Geofence monitoring with radius detection
+  - Threat persistence to Firestore with 8-hour expiry
+  - Notification system with Android 13+ permissions
+  - QC Grade: A- (code quality), A (architecture), B (documentation)
+  - QC Report: `docs/reviews/BLOCKS_C_D_QC_REPORT.md`
+- **Block D: Template Generation & SITREP Reporting** — ✅ COMPLETE & QC APPROVED
+  - ReportService with LangChainAdapter integration
+  - SITREP generation via LangChain `/sitrep/summarize`
+  - NATO template support (WARNORD, OPORD, FRAGO) via `/template/*` endpoints
+  - ReportViewModel with MVVM architecture
+  - Compose UI with loading states and share functionality
+  - FileProvider-based markdown export
+  - QC Grade: A- (code quality), A (architecture), B (documentation)
+  - QC Report: `docs/reviews/BLOCKS_C_D_QC_REPORT.md`
 
 ### MVP Sprint (Complete)
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.
