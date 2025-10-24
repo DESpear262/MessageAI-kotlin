@@ -131,8 +131,8 @@ class ChatService @Inject constructor(
                                         val allMessages = messageDao.getAllMessagesForChat(chatId)
                                         val unreadCount = UnreadHelper.calculateUnreadCount(allMessages, me)
                                         android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [REAL-TIME UPDATE]")
-                                        if (activeChat.activeChatId.value == chatId) {
-                                            android.util.Log.d("ChatService", "Skip unread update for active chat $chatId")
+                                        if (activeChat.shouldSkipUnreadUpdates(chatId)) {
+                                            android.util.Log.d("ChatService", "Skip unread update for active/grace chat $chatId")
                                         } else {
                                             chatDao.updateUnread(chatId, unreadCount)
                                         }
@@ -150,8 +150,8 @@ class ChatService @Inject constructor(
                     val allMessages = messageDao.getAllMessagesForChat(chatId)
                     val unreadCount = UnreadHelper.calculateUnreadCount(allMessages, me)
                     android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [INITIAL]")
-                    if (activeChat.activeChatId.value == chatId) {
-                        android.util.Log.d("ChatService", "Skip unread update for active chat $chatId")
+                    if (activeChat.shouldSkipUnreadUpdates(chatId)) {
+                        android.util.Log.d("ChatService", "Skip unread update for active/grace chat $chatId")
                     } else {
                         chatDao.updateUnread(chatId, unreadCount)
                     }

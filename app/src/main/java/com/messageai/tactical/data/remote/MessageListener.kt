@@ -76,9 +76,9 @@ class MessageListener @Inject constructor(
                 // Update unread count for this chat - query ALL messages, not just snapshot
                 val myUid = auth.currentUser?.uid
                 if (myUid != null) {
-                    // If this chat is currently active, do not overwrite unread count
-                    if (activeChat.activeChatId.value == chatId) {
-                        android.util.Log.d("MessageListener", "Skip unread update for active chat $chatId")
+                    // If this chat is currently active or just exited, do not overwrite unread count
+                    if (activeChat.shouldSkipUnreadUpdates(chatId)) {
+                        android.util.Log.d("MessageListener", "Skip unread update for active/grace chat $chatId")
                     } else {
                     // Get ALL messages for this chat from Room
                     val allMessages = db.messageDao().getAllMessagesForChat(chatId)
