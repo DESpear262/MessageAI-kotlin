@@ -31,7 +31,7 @@ class GeofenceWorker @AssistedInject constructor(
     @SuppressLint("MissingPermission")
     override suspend fun doWork(): Result {
         return try {
-            val loc = fused.lastLocation.awaitNullable()
+            val loc = fused.awaitNullable()
             if (loc != null) {
                 geo.checkGeofenceEnter(loc.latitude, loc.longitude) { /* alerts happen in service */ }
             }

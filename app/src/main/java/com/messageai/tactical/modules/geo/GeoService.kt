@@ -15,6 +15,9 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlin.math.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.messageai.tactical.modules.ai.AIService
 
 /**
@@ -48,7 +51,7 @@ class GeoService(
      * Analyze recent chat messages with AI and persist extracted threats to Firestore.
      * Falls back to device location for centerpoint when AI omits geo.
      */
-    @SuppressLint("MissingPermission")
+    @android.annotation.SuppressLint("MissingPermission")
     fun analyzeChatThreats(chatId: String, maxMessages: Int = 100, onComplete: ((Int) -> Unit)? = null) {
         val locTask = fused.lastLocation
         locTask.addOnSuccessListener { loc ->
@@ -56,11 +59,12 @@ class GeoService(
             val fallbackLon = loc?.longitude
             // Call AI to summarize threats (LangChain /threats/extract via provider)
             // Note: using coroutines would be preferred; for MVP, use Task-like bridging via runCatching
-            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                val result = runCatching { aiService.summarizeThreats(chatId, maxMessages) }
-                val count = result.getOrNull()?.getOrNull()?.let { list ->
+            CoroutineScope(Dispatchers.IO).launch {
+                val result = aiService.summarizeThreats(chatId, maxMessages)
+                val items: List<Map<String, Any?>>? = result.getOrNull()
+                val count = items?.let { list: List<Map<String, Any?>> ->
                     var saved = 0
-                    list.forEach { threatMap ->
+                    list.forEach { threatMap: Map<String, Any?> ->
                         val summary = threatMap["summary"]?.toString() ?: return@forEach
                         val severity = (threatMap["severity"] as? Number)?.toInt() ?: 3
                         val radiusM = (threatMap["radiusM"] as? Number)?.toInt() ?: DEFAULT_RADIUS_M
