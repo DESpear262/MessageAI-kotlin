@@ -3,10 +3,12 @@ package com.messageai.tactical.ui.chat
 import android.annotation.SuppressLint
 import android.location.Location
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.messageai.tactical.modules.geo.GeoService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,7 +33,9 @@ class GeoViewModel @Inject constructor(
     }
 
     fun analyzeChatThreats(chatId: String) {
-        geo.analyzeChatThreats(chatId) { /* count -> could show a toast/snackbar */ }
+        viewModelScope.launch {
+            geo.analyzeChatThreats(chatId)
+        }
     }
 }
 

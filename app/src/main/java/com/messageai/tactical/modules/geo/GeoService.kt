@@ -18,6 +18,7 @@ import kotlin.math.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import com.messageai.tactical.modules.ai.AIService
 
 /**
@@ -52,47 +53,37 @@ class GeoService(
      * Falls back to device location for centerpoint when AI omits geo.
      */
     @android.annotation.SuppressLint("MissingPermission")
-    fun analyzeChatThreats(chatId: String, maxMessages: Int = 100, onComplete: ((Int) -> Unit)? = null) {
-        val locTask = fused.lastLocation
-        locTask.addOnSuccessListener { loc ->
-            val fallbackLat = loc?.latitude
-            val fallbackLon = loc?.longitude
-            // Call AI to summarize threats (LangChain /threats/extract via provider)
-            // Note: using coroutines would be preferred; for MVP, use Task-like bridging via runCatching
-            CoroutineScope(Dispatchers.IO).launch {
+    suspend fun analyzeChatThreats(chatId: String, maxMessages: Int = 100): Result<Int> =
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            runCatching {
+                val loc = runCatching { fused.lastLocation.await() }.getOrNull()
+                val fallbackLat = loc?.latitude
+                val fallbackLon = loc?.longitude
                 val result = aiService.summarizeThreats(chatId, maxMessages)
-                val items: List<Map<String, Any?>>? = result.getOrNull()
-                val count = items?.let { list: List<Map<String, Any?>> ->
-                    var saved = 0
-                    list.forEach { threatMap: Map<String, Any?> ->
-                        val summary = threatMap["summary"]?.toString() ?: return@forEach
-                        val severity = (threatMap["severity"] as? Number)?.toInt() ?: 3
-                        val radiusM = (threatMap["radiusM"] as? Number)?.toInt() ?: DEFAULT_RADIUS_M
-                        val geo = threatMap["geo"] as? Map<*, *>
-                        val lat = (geo?.get("lat") as? Number)?.toDouble() ?: fallbackLat
-                        val lon = (geo?.get("lon") as? Number)?.toDouble() ?: fallbackLon
-
-                        // Optional: call AIService.extractGeoData(text) if available to satisfy requirement hook
-                        // We pass the summary; implementation is a no-op stub for now
-                        runCatching { aiService.extractGeoData(summary) }
-
-                        val data = hashMapOf(
-                            "summary" to summary,
-                            "severity" to severity,
-                            "confidence" to ((threatMap["confidence"] as? Number)?.toDouble() ?: 0.75),
-                            "geo" to if (lat != null && lon != null) mapOf("lat" to lat, "lon" to lon) else null,
-                            "radiusM" to radiusM,
-                            "ts" to Timestamp.now()
-                        ).filterValues { it != null }
-                        firestore.collection(THREATS_COLLECTION).add(data)
-                        saved += 1
-                    }
-                    saved
-                } ?: 0
-                onComplete?.invoke(count)
+                val items: List<Map<String, Any?>> = result.getOrThrow()
+                var saved = 0
+                items.forEach { threatMap ->
+                    val summary = threatMap["summary"]?.toString() ?: return@forEach
+                    val severity = (threatMap["severity"] as? Number)?.toInt() ?: 3
+                    val radiusM = (threatMap["radiusM"] as? Number)?.toInt() ?: DEFAULT_RADIUS_M
+                    val geo = threatMap["geo"] as? Map<*, *>
+                    val lat = (geo?.get("lat") as? Number)?.toDouble() ?: fallbackLat
+                    val lon = (geo?.get("lon") as? Number)?.toDouble() ?: fallbackLon
+                    runCatching { aiService.extractGeoData(summary) }
+                    val data = hashMapOf(
+                        "summary" to summary,
+                        "severity" to severity,
+                        "confidence" to ((threatMap["confidence"] as? Number)?.toDouble() ?: 0.75),
+                        "geo" to if (lat != null && lon != null) mapOf("lat" to lat, "lon" to lon) else null,
+                        "radiusM" to radiusM,
+                        "ts" to Timestamp.now()
+                    ).filterValues { it != null }
+                    firestore.collection(THREATS_COLLECTION).add(data).await()
+                    saved += 1
+                }
+                saved
             }
         }
-    }
 
     fun alertSignalLossIfNeeded(consecutiveMisses: Int) {
         if (consecutiveMisses >= 2) {
