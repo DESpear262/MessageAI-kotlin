@@ -253,7 +253,9 @@ class ChatViewModel @Inject constructor(
     private val chatDao: ChatDao,
     private val presence: PresenceService,
     private val messageListener: MessageListener,
-    private val imageService: ImageService
+    private val imageService: ImageService,
+    private val missionService: com.messageai.tactical.modules.missions.MissionService,
+    private val aiService: com.messageai.tactical.modules.ai.AIService
 ) : androidx.lifecycle.ViewModel() {
     val myUid: String? get() = auth.currentUser?.uid
 
@@ -298,6 +300,39 @@ class ChatViewModel @Inject constructor(
         )
         repo.db.messageDao().upsert(entity)
         com.messageai.tactical.data.remote.SendWorker.enqueue(context, id, chatId, me.uid, text, entity.timestamp)
+
+        if (text.startsWith("/missionplan")) {
+            // Create a mission seeded by AI tasks
+            val missionId = missionService.createMission(
+                com.messageai.tactical.modules.missions.Mission(
+                    chatId = chatId,
+                    title = "Mission Plan",
+                    description = "Auto-generated from /missionplan",
+                    status = "open",
+                    priority = 3,
+                    assignees = listOf(me.uid),
+                    sourceMsgId = id
+                )
+            )
+            aiService.extractTasks(chatId, maxMessages = 100).onSuccess { tasks ->
+                tasks.forEach { t ->
+                    val title = t["title"]?.toString() ?: return@forEach
+                    val desc = t["description"]?.toString()
+                    val priority = (t["priority"] as? Number)?.toInt() ?: 3
+                    missionService.addTask(
+                        missionId,
+                        com.messageai.tactical.modules.missions.MissionTask(
+                            missionId = missionId,
+                            title = title,
+                            description = desc,
+                            priority = priority
+                        )
+                    )
+                }
+                // Archive if all tasks immediately done (unlikely on creation)
+                missionService.archiveIfCompleted(missionId)
+            }
+        }
     }
 
     suspend fun sendImage(chatId: String, uri: Uri, context: android.content.Context) {

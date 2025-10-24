@@ -73,3 +73,17 @@ class CasevacWorkflowResponse(BaseModel):
     completed: bool = False
 
 
+# Tasks extraction
+class TaskItem(BaseModel):
+    title: str
+    description: Optional[str] = None
+    priority: Optional[int] = None
+    assignees: Optional[List[str]] = None
+    dueAt: Optional[str] = None
+    sourceMsgId: Optional[str] = None
+
+
+class TasksData(BaseModel):
+    tasks: List[TaskItem]
+
+

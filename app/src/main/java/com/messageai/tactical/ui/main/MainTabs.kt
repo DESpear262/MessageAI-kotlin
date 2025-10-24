@@ -6,7 +6,12 @@
  */
 package com.messageai.tactical.ui.main
 
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 
 /**
  * Main screen container after authentication.
@@ -20,5 +25,28 @@ import androidx.compose.runtime.Composable
  */
 @Composable
 fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateChat: () -> Unit = {}) {
-    ChatListScreen(onOpenChat = onOpenChat, onLogout = onLogout, onCreateChat = onCreateChat)
+    var tab by remember { mutableStateOf(0) }
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = tab == 0,
+                    onClick = { tab = 0 },
+                    icon = { Icon(Icons.Default.Chat, contentDescription = "Chats") },
+                    label = { Text("Chats") }
+                )
+                NavigationBarItem(
+                    selected = tab == 1,
+                    onClick = { tab = 1 },
+                    icon = { Icon(Icons.Default.ListAlt, contentDescription = "Missions") },
+                    label = { Text("Missions") }
+                )
+            }
+        }
+    ) { padding ->
+        when (tab) {
+            0 -> ChatListScreen(onOpenChat = onOpenChat, onLogout = onLogout, onCreateChat = onCreateChat)
+            1 -> MissionBoardScreen()
+        }
+    }
 }

@@ -34,6 +34,22 @@ class AIService(
         // Simple passthrough for now; provider may delegate to adapter
         return provider.runWorkflow(path, payload)
     }
+
+    suspend fun extractTasks(chatId: String, maxMessages: Int = 100): Result<List<Map<String, Any?>>> {
+        val ctx = contextBuilder.build(
+            RagContextBuilder.WindowSpec(chatId = chatId, maxMessages = maxMessages)
+        )
+        val serialized = ctx.joinToString("\n") { it["text"]?.toString().orEmpty() }
+        // Route via LangChain adapter (stub path /tasks/extract)
+        return try {
+            val resp = adapter.post("tasks/extract", mapOf("contextText" to serialized), mapOf("chatId" to chatId))
+            val data = resp.data ?: emptyMap()
+            val tasks = (data["tasks"] as? List<Map<String, Any?>>) ?: emptyList()
+            Result.success(tasks)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 

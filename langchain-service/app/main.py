@@ -10,6 +10,7 @@ from .schemas import (
     MedevacTemplateData,
     SitrepTemplateData,
     ThreatsData,
+    TasksData,
     IntentDetectData,
     CasevacWorkflowResponse,
     ConfidenceField,
@@ -156,6 +157,13 @@ def casevac_run(body: AiRequestEnvelope):
         {"name": "nearest_facility_lookup", "status": "pending"},
     ]
     data = CasevacWorkflowResponse(plan=plan, result={}, completed=False).model_dump()
+    return _ok(request_id, data)
+
+
+@app.post("/tasks/extract")
+def tasks_extract(body: AiRequestEnvelope):
+    request_id = body.requestId
+    data = TasksData(tasks=[]).model_dump()
     return _ok(request_id, data)
 
 
