@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.collect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.catch
 import android.util.Log
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.Dispatchers
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.messageai.tactical.data.db.ChatDao
@@ -128,6 +130,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     LaunchedEffect(chatId) { 
         vm.startListener(chatId, scope)
         vm.markAsRead(chatId)
+        vm.markAllAsRead(chatId, scope)
     }
 
     /*
@@ -312,6 +315,25 @@ class ChatViewModel @Inject constructor(
      */
     fun markMessagesRead(chatId: String, messageIds: List<String>, scope: kotlinx.coroutines.CoroutineScope) {
         readReceiptUpdater.markRead(chatId, messageIds, scope)
+    }
+
+    /** Marks all messages in this chat as read for the current user (one-time on open). */
+    fun markAllAsRead(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
+        val myUidLocal = myUid ?: return
+        scope.launch(Dispatchers.IO) {
+            val all = repo.db.messageDao().getAllMessagesForChat(chatId)
+            val json = Json { ignoreUnknownKeys = true }
+            val toMark = all.asSequence()
+                .filter { it.senderId != myUidLocal }
+                .mapNotNull { m ->
+                    val readBy = try { json.decodeFromString<List<String>>(m.readBy) } catch (_: Exception) { emptyList() }
+                    if (readBy.contains(myUidLocal)) null else m.id
+                }
+                .toList()
+            if (toMark.isNotEmpty()) {
+                readReceiptUpdater.markRead(chatId, toMark, scope)
+            }
+        }
     }
 
     suspend fun send(chatId: String, text: String, context: android.content.Context) {
