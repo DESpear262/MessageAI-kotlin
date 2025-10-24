@@ -24,10 +24,13 @@ import kotlinx.coroutines.launch
 class MessageAiApp : Application(), Configuration.Provider {
     @Inject lateinit var db: AppDatabase
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var networkHeartbeat: com.messageai.tactical.data.remote.NetworkHeartbeat
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Start network heartbeat monitoring (cellular)
+        try { networkHeartbeat.start() } catch (_: Exception) {}
         // Re-scan pending sends and enqueue
         CoroutineScope(Dispatchers.Default).launch {
             try {
