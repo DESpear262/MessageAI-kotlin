@@ -32,6 +32,10 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collect
+import androidx.compose.runtime.snapshotFlow
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.messageai.tactical.data.db.ChatDao
@@ -40,6 +44,7 @@ import com.messageai.tactical.data.remote.ImageUploadWorker
 import com.messageai.tactical.data.remote.MessageListener
 import com.messageai.tactical.data.remote.MessageRepository
 import com.messageai.tactical.data.remote.MessageService
+import com.messageai.tactical.data.remote.ReadReceiptUpdater
 import com.messageai.tactical.data.remote.PresenceService
 import com.messageai.tactical.data.remote.model.MessageDoc
 import com.messageai.tactical.ui.components.PresenceDot
@@ -121,6 +126,23 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
         vm.startListener(chatId, scope)
         vm.markAsRead(chatId)
     }
+
+    // Mark fully visible messages as read as the user scrolls
+    LaunchedEffect(listState, vm.myUid) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.index } }
+            .map { indices ->
+                indices.mapNotNull { idx ->
+                    val item = messages.peek(idx)
+                    if (item != null && item.senderId != vm.myUid) item.id else null
+                }.distinct()
+            }
+            .distinctUntilChanged()
+            .collect { visibleIds ->
+                if (visibleIds.isNotEmpty()) {
+                    vm.markMessagesRead(chatId, visibleIds, scope)
+                }
+            }
+    }
     DisposableEffect(chatId) {
         onDispose { vm.stopListener() }
     }
@@ -149,7 +171,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(8.dp)) {
             LazyColumn(state = listState, reverseLayout = true, modifier = Modifier.weight(1f)) {
-                items(count = messages.itemCount) { index ->
+                items(count = messages.itemCount, key = { index -> messages.peek(index)?.id ?: index }) { index ->
                     val msg = messages[index]
                     if (msg != null) {
                         val isMine = msg.senderId == vm.myUid
@@ -254,6 +276,7 @@ class ChatViewModel @Inject constructor(
     private val presence: PresenceService,
     private val messageListener: MessageListener,
     private val imageService: ImageService,
+    private val readReceiptUpdater: ReadReceiptUpdater,
     private val missionService: com.messageai.tactical.modules.missions.MissionService,
     private val aiService: com.messageai.tactical.modules.ai.AIService
 ) : androidx.lifecycle.ViewModel() {
@@ -280,6 +303,15 @@ class ChatViewModel @Inject constructor(
     suspend fun markAsRead(chatId: String) {
         // Clear unread count when user opens chat
         repo.db.chatDao().updateUnread(chatId, 0)
+    }
+
+    /**
+     * Marks the given messages as read for the current user by adding the user's UID
+     * to each message's readBy list in Firestore. This triggers listeners to recalculate
+     * unread counts so badges decrement as messages are viewed.
+     */
+    fun markMessagesRead(chatId: String, messageIds: List<String>, scope: kotlinx.coroutines.CoroutineScope) {
+        readReceiptUpdater.markRead(chatId, messageIds, scope)
     }
 
     suspend fun send(chatId: String, text: String, context: android.content.Context) {
