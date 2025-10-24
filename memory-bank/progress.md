@@ -44,6 +44,25 @@
   - FileProvider-based markdown export
   - QC Grade: A- (code quality), A (architecture), B (documentation)
   - QC Report: `docs/reviews/BLOCKS_C_D_QC_REPORT.md`
+- **Block E: Mission Tracker & Dashboard** — ✅ COMPLETE & QC APPROVED
+  - MissionService with full CRUD and real-time Firestore listeners (Flow)
+  - Mission & MissionTask data models with subcollection support
+  - MissionBoardScreen with Compose UI and LazyColumn
+  - MissionBoardViewModel with reactive StateFlow updates
+  - AIService.extractTasks() for AI-based task extraction
+  - CASEVAC casualty tracking integration
+  - QC Grade: A- (code quality), A (architecture), B- (documentation)
+  - QC Report: `docs/reviews/BLOCKS_E_F_QC_REPORT.md`
+- **Block F: CASEVAC Agent Workflow** — ✅ COMPLETE & QC APPROVED
+  - CasevacWorker (WorkManager) with 4-step autonomous workflow
+  - FacilityService with Haversine distance calculation
+  - AIService.detectIntent() and runWorkflow() for AI orchestration
+  - Multi-step flow: 9-line generation → facility lookup → mission creation → status update
+  - CasevacNotifier for start/completion notifications
+  - Exponential backoff retry logic (30s base)
+  - Persists across app restarts
+  - QC Grade: A- (code quality), A (architecture), B- (documentation)
+  - QC Report: `docs/reviews/BLOCKS_E_F_QC_REPORT.md`
 
 ### MVP Sprint (Complete)
 - Block C: Firestore models/paths, LWW utils, mappers, services — done.

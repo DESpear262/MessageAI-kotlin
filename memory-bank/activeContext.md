@@ -1,14 +1,23 @@
 # Active Context
 
 ## Current Focus
-- Sprint 2 AI Integration: ✅ ALL CORE BLOCKS COMPLETE & QC APPROVED (A, B, B2, C, D)
+- Sprint 2 AI Integration: ✅ ALL BLOCKS COMPLETE & QC APPROVED (A, B, B2, C, D, E, F)
   - Block A: AI Core module ✅ COMPLETE & QC APPROVED
   - Block B: Firebase Functions AI gateway ✅ COMPLETE & QC APPROVED
   - Block B2: LangChain Service ✅ COMPLETE & QC APPROVED
   - Block C: Geo Intelligence ✅ COMPLETE & QC APPROVED
   - Block D: Reporting ✅ COMPLETE & QC APPROVED
+  - Block E: Mission Tracker & Dashboard ✅ COMPLETE & QC APPROVED
+  - Block F: CASEVAC Agent Workflow ✅ COMPLETE & QC APPROVED
 
 ## Recent Changes
+- **QC completed for Blocks E & F:**
+  - Comprehensive code review report created (`docs/reviews/BLOCKS_E_F_QC_REPORT.md`)
+  - Block E: MissionService with real-time Firestore Flow, MissionBoardScreen UI, AIService.extractTasks()
+  - Block F: CasevacWorker with multi-step workflow, FacilityService, AIService.detectIntent/runWorkflow()
+  - Both blocks properly integrate with AIService and LangChainAdapter
+  - WorkManager integration with retry/backoff for CASEVAC workflow
+  - Status: ✅ APPROVED FOR MVP DEPLOYMENT
 - **QC completed for Blocks C & D:**
   - Comprehensive code review report created (`docs/reviews/BLOCKS_C_D_QC_REPORT.md`)
   - Block C: GeoService with AI integration, threat extraction, geofencing
