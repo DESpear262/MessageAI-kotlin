@@ -46,7 +46,7 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
     ) { padding ->
         when (tab) {
             0 -> ChatListScreen(onOpenChat = onOpenChat, onLogout = onLogout, onCreateChat = onCreateChat)
-            1 -> MissionBoardScreen()
+            1 -> MissionBoardScreen(chatId = "global")
         }
     }
 }

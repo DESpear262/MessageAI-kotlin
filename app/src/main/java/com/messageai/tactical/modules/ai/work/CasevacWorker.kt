@@ -37,7 +37,7 @@ class CasevacWorker @AssistedInject constructor(
             ai.generateTemplate(chatId, type = "MEDEVAC", maxMessages = 50)
 
             // 2) Determine nearest facility
-            val loc = fused.lastLocation.awaitNullable()
+            val loc = fused.awaitNullable()
             val lat = loc?.latitude ?: 0.0
             val lon = loc?.longitude ?: 0.0
             val facility = facilities.nearest(lat, lon)

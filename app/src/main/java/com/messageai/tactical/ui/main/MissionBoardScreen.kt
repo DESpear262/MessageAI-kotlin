@@ -4,22 +4,29 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.messageai.tactical.modules.missions.Mission
 
 @Composable
-fun MissionBoardScreen() {
+fun MissionBoardScreen(chatId: String) {
     val vm: MissionBoardViewModel = hiltViewModel()
+    LaunchedEffect(chatId) { vm.setChatId(chatId) }
     val missions by vm.missions.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         Text("Missions", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(missions.size) { idx ->
                 val (id, m) = missions[idx]
-                MissionRow(m = m, onStatusChange = { newStatus -> vm.updateStatus(id, newStatus) })
+                MissionRow(m = m, onStatusChange = { newStatus ->
+                    scope.launch { vm.updateStatus(id, newStatus) }
+                })
                 Divider()
             }
         }

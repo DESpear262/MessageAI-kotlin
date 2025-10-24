@@ -15,12 +15,17 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Unit tests for [AuthViewModel].
  *
  * Verifies login, registration, password reset validation and error handling.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class AuthViewModelTest {
 
     @get:Rule
