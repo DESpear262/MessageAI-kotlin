@@ -1,5 +1,8 @@
 from typing import Any, Dict
 import time
+import hmac
+import hashlib
+import json
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -19,12 +22,48 @@ from .schemas import (
 from .providers import OpenAIProvider
 from .firestore_client import FirestoreReader
 from .rag import RAGCache
+from .config import LANGCHAIN_SHARED_SECRET, SIGNATURE_MAX_AGE_SECONDS, LOG_LEVEL
+import logging
 
+
+logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
+logger = logging.getLogger("messageai")
 
 app = FastAPI(title="MessageAI LangChain Service", version="0.1.0")
 llm = OpenAIProvider()
 fs = FirestoreReader()
 rag = RAGCache(llm)
+
+
+@app.middleware("http")
+async def hmac_verification(request: Request, call_next):
+    # Skip for health and docs
+    if request.url.path in {"/healthz", "/docs", "/openapi.json"}:
+        return await call_next(request)
+    if not LANGCHAIN_SHARED_SECRET:
+        return await call_next(request)
+    sig = request.headers.get("x-sig")
+    ts = request.headers.get("x-sig-ts")
+    request_id = request.headers.get("x-request-id") or "unknown"
+    if not sig or not ts or not request_id:
+        return JSONResponse(status_code=401, content={"error": "Missing signature headers"})
+    try:
+        sig_time = int(ts)
+    except ValueError:
+        return JSONResponse(status_code=401, content={"error": "Invalid signature timestamp"})
+    now = int(time.time() * 1000)
+    age_seconds = (now - sig_time) / 1000
+    if age_seconds > SIGNATURE_MAX_AGE_SECONDS:
+        return JSONResponse(status_code=401, content={"error": "Signature expired"})
+
+    body = await request.body()
+    payload_hash = hashlib.sha256(body).hexdigest()
+    base = f"{request_id}.{ts}.{payload_hash}"
+    expected = hmac.new(LANGCHAIN_SHARED_SECRET.encode(), base.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        logger.warning(json.dumps({"event": "invalid_signature", "request_id": request_id, "client": request.client.host}))
+        return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+    return await call_next(request)
 
 
 def _ok(request_id: str, data: Dict[str, Any]) -> JSONResponse:
@@ -35,6 +74,7 @@ def _ok(request_id: str, data: Dict[str, Any]) -> JSONResponse:
 
 
 def _err(request_id: str, message: str, status: int = 500) -> JSONResponse:
+    logger.error(json.dumps({"event": "error", "request_id": request_id, "message": message, "status": status}))
     return JSONResponse(
         status_code=status,
         content=AiResponseEnvelope(requestId=request_id, status="error", error=message).model_dump(by_alias=True),

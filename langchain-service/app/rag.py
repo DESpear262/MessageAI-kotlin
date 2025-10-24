@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 import math
+import json
+import logging
 
 from .providers import OpenAIProvider
 
@@ -22,6 +24,7 @@ class RAGCache:
         self.llm = llm
         self._embeds: Dict[str, List[float]] = {}
         self._texts: Dict[str, str] = {}
+        self._logger = logging.getLogger("messageai.rag")
 
     def index_messages(self, messages: List[Dict[str, Any]], max_items: int = 300) -> None:
         for m in messages[:max_items]:
@@ -34,14 +37,20 @@ class RAGCache:
             self._texts[mid] = text
             try:
                 self._embeds[mid] = self.llm.embed(text)
-            except Exception:
-                # mock mode or error: store empty vector
+            except Exception as e:
+                # mock mode or error: store empty vector and log
+                self._logger.error(json.dumps({
+                    "event": "embed_error",
+                    "message_id": str(mid),
+                    "error": str(e)
+                }))
                 self._embeds[mid] = []
 
     def top_k(self, query: str, k: int = 20) -> List[Tuple[str, str, float]]:
         try:
             qv = self.llm.embed(query)
-        except Exception:
+        except Exception as e:
+            self._logger.error(json.dumps({"event": "query_embed_error", "error": str(e)}))
             qv = []
         scored: List[Tuple[str, str, float]] = []
         for mid, vec in self._embeds.items():

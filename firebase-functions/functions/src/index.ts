@@ -170,6 +170,76 @@ export const sendGroupPushNotification = onDocumentCreated(
   }
 );
 
+// --- Simple per-instance circuit breaker ------------------------------------
+enum CircuitState {
+  CLOSED = 'CLOSED',
+  OPEN = 'OPEN',
+  HALF_OPEN = 'HALF_OPEN',
+}
+
+class CircuitBreaker {
+  private state: CircuitState = CircuitState.CLOSED;
+  private failureCount = 0;
+  private successCount = 0;
+  private lastFailureTime = 0;
+
+  constructor(
+    private readonly failureThreshold: number = 5,
+    private readonly recoveryTimeoutMs: number = 60000,
+    private readonly successThreshold: number = 2,
+  ) {}
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    // transition to HALF_OPEN after cooldown
+    if (this.state === CircuitState.OPEN && (Date.now() - this.lastFailureTime) > this.recoveryTimeoutMs) {
+      this.state = CircuitState.HALF_OPEN;
+      this.successCount = 0;
+      console.log(JSON.stringify({ level: 'info', event: 'circuit_half_open' }));
+    }
+
+    if (this.state === CircuitState.OPEN) {
+      throw new Error('CircuitOpen');
+    }
+
+    try {
+      const out = await fn();
+      this.onSuccess();
+      return out;
+    } catch (e) {
+      this.onFailure();
+      throw e;
+    }
+  }
+
+  private onSuccess() {
+    this.failureCount = 0;
+    if (this.state === CircuitState.HALF_OPEN) {
+      this.successCount += 1;
+      if (this.successCount >= this.successThreshold) {
+        this.state = CircuitState.CLOSED;
+        console.log(JSON.stringify({ level: 'info', event: 'circuit_closed' }));
+      }
+    }
+  }
+
+  private onFailure() {
+    this.lastFailureTime = Date.now();
+    if (this.state === CircuitState.CLOSED) {
+      this.failureCount += 1;
+      if (this.failureCount >= this.failureThreshold) {
+        this.state = CircuitState.OPEN;
+        console.log(JSON.stringify({ level: 'error', event: 'circuit_open' }));
+      }
+    } else if (this.state === CircuitState.HALF_OPEN) {
+      this.state = CircuitState.OPEN;
+      this.successCount = 0;
+      console.log(JSON.stringify({ level: 'error', event: 'circuit_reopen' }));
+    }
+  }
+}
+
+const langChainCircuit = new CircuitBreaker(5, 60000, 2);
+
 // --- HTTPS proxies -----------------------------------------------------------
 const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 
@@ -274,7 +344,7 @@ type Envelope = {
   payload: Record<string, unknown>;
 };
 
-// naive in-memory token bucket (cold start resets) per uid
+// naive in-memory token bucket (cold start resets) per uid (kept as fast-path)
 const buckets: Record<string, { tokens: number; lastRefillMs: number }> = {};
 const RATE_PER_MIN = 10;
 const BURST = 20;
@@ -341,6 +411,35 @@ function sign(envelope: Envelope): { sig: string; ts: string } {
   const secret = LANGCHAIN_SHARED_SECRET.value();
   const sig = crypto.createHmac('sha256', secret).update(base).digest('hex');
   return { sig, ts };
+}
+
+// Firestore-backed rate limit (persistent across cold starts)
+async function checkRateLimitPersistent(uid: string): Promise<boolean> {
+  const db = admin.firestore();
+  const ref = db.collection('rateLimits').doc(uid);
+  return await db.runTransaction(async (tx) => {
+    const doc = await tx.get(ref);
+    const now = Date.now();
+    let tokens = BURST;
+    let lastRefillMs = now;
+    if (doc.exists) {
+      const data = doc.data() as any;
+      tokens = typeof data.tokens === 'number' ? data.tokens : BURST;
+      lastRefillMs = typeof data.lastRefillMs === 'number' ? data.lastRefillMs : now;
+      const elapsedMin = (now - lastRefillMs) / 60000;
+      const newTokens = Math.floor(elapsedMin * RATE_PER_MIN);
+      if (newTokens > 0) {
+        tokens = Math.min(BURST, tokens + newTokens);
+        lastRefillMs = now;
+      }
+    }
+    if (tokens > 0) {
+      tokens -= 1;
+      tx.set(ref, { tokens, lastRefillMs, uid }, { merge: true });
+      return true;
+    }
+    return false;
+  });
 }
 
 async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: number): Promise<Response> {
@@ -410,8 +509,13 @@ export const aiRouter = onRequest({ cors: true, secrets: [LANGCHAIN_SHARED_SECRE
     return;
   }
 
-  // Rate limit
-  if (!take(uid)) { res.status(429).json({ error: 'Rate limit exceeded' }); return; }
+  // Rate limit: persistent check (fallback to allow on Firestore error)
+  try {
+    const allowed = await checkRateLimitPersistent(uid);
+    if (!allowed) { res.status(429).json({ error: 'Rate limit exceeded' }); return; }
+  } catch (err) {
+    console.error(JSON.stringify({ level: 'error', event: 'ratelimit_error', error: (err as any)?.message }));
+  }
 
   // Route
   const route = routeToPath((req.path || '').replace(/^\/+aiRouter\/?/, '')); // normalize if provider includes function name
@@ -429,7 +533,7 @@ export const aiRouter = onRequest({ cors: true, secrets: [LANGCHAIN_SHARED_SECRE
 
   const started = Date.now();
   try {
-    const upstream = await forwardToLangChain(target.path, envelope, target.timeoutMs);
+    const upstream = await langChainCircuit.execute(() => forwardToLangChain(target.path, envelope, target.timeoutMs));
     const data = await upstream.json();
     res.status(upstream.status).json(data);
     console.log(JSON.stringify({
@@ -441,6 +545,10 @@ export const aiRouter = onRequest({ cors: true, secrets: [LANGCHAIN_SHARED_SECRE
       status: upstream.status,
     }));
   } catch (e: any) {
+    if (e?.message === 'CircuitOpen') {
+      res.status(503).json({ error: 'Service unavailable, please retry shortly' });
+      return;
+    }
     const code = e?.name === 'AbortError' ? 504 : 502;
     res.status(code).json({ error: e?.message || 'Upstream error' });
     console.error(JSON.stringify({

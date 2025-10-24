@@ -1,6 +1,9 @@
 package com.messageai.tactical.modules.ai.work
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -32,12 +35,15 @@ class CasevacWorker @AssistedInject constructor(
         val chatId = inputData.getString(KEY_CHAT_ID) ?: return@withContext Result.failure()
         val messageId = inputData.getString(KEY_MESSAGE_ID)
         try {
+            Log.i(TAG, "CASEVAC start chatId=$chatId runAttempt=$runAttemptCount")
             com.messageai.tactical.notifications.CasevacNotifier.notifyStart(applicationContext, chatId)
             // 1) Generate 9-line (template) - optional stub
-            ai.generateTemplate(chatId, type = "MEDEVAC", maxMessages = 50)
+            val t0 = System.currentTimeMillis()
+            val tpl = ai.generateTemplate(chatId, type = "MEDEVAC", maxMessages = 50)
+            Log.d(TAG, "template ms=${System.currentTimeMillis() - t0} ok=${tpl.isSuccess}")
 
             // 2) Determine nearest facility
-            val loc = fused.awaitNullable()
+            val loc = getLocationSafely()
             val lat = loc?.latitude ?: 0.0
             val lon = loc?.longitude ?: 0.0
             val facility = facilities.nearest(lat, lon)
@@ -63,13 +69,19 @@ class CasevacWorker @AssistedInject constructor(
             missions.archiveIfCompleted(createdId)
 
             com.messageai.tactical.notifications.CasevacNotifier.notifyComplete(applicationContext, facility?.name)
+            Log.i(TAG, "CASEVAC complete chatId=$chatId missionId=$createdId")
             Result.success()
-        } catch (_: Exception) {
+        } catch (e: SecurityException) {
+            Log.e(TAG, "CASEVAC permission error", e)
+            Result.failure()
+        } catch (e: Exception) {
+            Log.e(TAG, "CASEVAC failed chatId=$chatId", e)
             Result.retry()
         }
     }
 
     companion object {
+        private const val TAG = "CasevacWorker"
         private const val KEY_CHAT_ID = "chatId"
         private const val KEY_MESSAGE_ID = "messageId"
 
@@ -84,6 +96,28 @@ class CasevacWorker @AssistedInject constructor(
             WorkManager.getInstance(context).enqueueUniqueWork("casevac_$chatId", ExistingWorkPolicy.APPEND_OR_REPLACE, req)
         }
     }
+}
+
+private fun CasevacWorker.hasLocationPermission(): Boolean {
+    return ContextCompat.checkSelfPermission(
+        applicationContext,
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+}
+
+private suspend fun CasevacWorker.getLocationSafely(): android.location.Location? {
+    if (!hasLocationPermission()) {
+        Log.w("CasevacWorker", "Location permission not granted; using fallback (0,0)")
+        return null
+    }
+    return try { this.awaitLocationNullable() } catch (e: SecurityException) {
+        Log.e("CasevacWorker", "Location SecurityException", e)
+        null
+    }
+}
+
+private suspend fun CasevacWorker.awaitLocationNullable(): android.location.Location? {
+    return (LocationServices.getFusedLocationProviderClient(applicationContext)).awaitNullable()
 }
 
 private suspend fun FusedLocationProviderClient.awaitNullable(): android.location.Location? =
