@@ -1,24 +1,38 @@
 # Active Context
 
 ## Current Focus
-- Block A: AI Core module ✅ COMPLETE
-- Block B: Functions AI gateway ✅ COMPLETE (local + secure routers)
-- Block B2: LangChain Service running locally (uvicorn) and proxied via CF
+- Sprint 2 AI Integration: ✅ ALL BLOCKS COMPLETE & QC APPROVED
+  - Block A: AI Core module ✅ COMPLETE
+  - Block B: Firebase Functions AI gateway ✅ COMPLETE & QC APPROVED
+  - Block B2: LangChain Service ✅ COMPLETE & QC APPROVED
 
 ## Recent Changes
-- LangChain FastAPI service under `langchain-service/` with endpoints: template, threats, sitrep, intent, workflow
-- CF AI Gateway:
-  - `aiRouter` at `/v1/*` (ID token required, HMAC signing, rate limits, 64KB cap, timeouts)
-  - `aiRouterSimple?path=...` for quick local testing
-  - Defaults to local `http://127.0.0.1:8000` when `LANGCHAIN_BASE_URL` is unset
-- README updated with emulator host (`10.0.2.2`) guidance and curl test commands
+- **QC completed for Blocks B & B2:**
+  - Comprehensive code review report created (`docs/reviews/BLOCKS_B_B2_QC_REPORT.md`)
+  - Docker build successful (19.1s)
+  - TypeScript compilation successful (0 errors)
+  - All 5 AI endpoints verified
+  - Security measures validated (auth, rate limiting, HMAC signing)
+  - Status: ✅ APPROVED FOR MVP DEPLOYMENT
+- LangChain FastAPI service with endpoints: template, threats, sitrep, intent, workflow
+- CF AI Gateway with three-tier architecture:
+  - `aiRouter` at `/v1/*` (production-grade with full security)
+  - `aiRouterSimple?path=...` (development/testing)
+  - `openaiProxy` (legacy support)
 
 ## Next Steps
-- Optional: deploy LangChain to Cloud Run; set `LANGCHAIN_BASE_URL`
-- Android dev: set `CF_BASE_URL` to `http://10.0.2.2:5001/messageai-kotlin/us-central1/` for emulator testing
-- Add per-endpoint data classes and optional AI response cache
+- Deploy LangChain service to Cloud Run/GKE (private network)
+- Configure production environment variables:
+  - `LANGCHAIN_BASE_URL` in Cloud Functions
+  - `LANGCHAIN_SHARED_SECRET` in Cloud Functions secrets
+  - `ALLOWED_ORIGINS` for CORS
+  - `OPENAI_API_KEY` in LangChain service
+  - `FIRESTORE_PROJECT_ID` in LangChain service
+- Update Android `BuildConfig.CF_BASE_URL` to production Firebase Function URL
+- Conduct end-to-end smoke testing (Android → CF → LangChain → response)
 
 ## Risks
-- Cold start/latency if Cloud Run min instances not configured
-- Schema drift between CF proxy and service; covered by Postman tests
+- In-memory rate limiting resets on cold start (acceptable for MVP)
+- In-memory RAG cache (no persistence between requests)
+- All limitations documented and acceptable for MVP
 
