@@ -129,12 +129,18 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
 
     // Mark fully visible messages as read as the user scrolls
     LaunchedEffect(listState, vm.myUid) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.index } }
-            .map { indices ->
+        snapshotFlow {
+            val indices = listState.layoutInfo.visibleItemsInfo.map { it.index }
+            val snapshots = messages.itemSnapshotList
+            indices to snapshots
+        }
+            .map { (indices, snapshots) ->
+                if (vm.myUid == null) return@map emptyList<String>()
+                val size = snapshots.size
                 indices
-                    .filter { it >= 0 && it < messages.itemCount }
+                    .filter { it >= 0 && it < size }
                     .mapNotNull { idx ->
-                        val item = messages.peek(idx)
+                        val item = try { snapshots[idx] } catch (_: Exception) { null }
                         if (item != null && item.senderId != vm.myUid) item.id else null
                     }
                     .distinct()
@@ -174,7 +180,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(8.dp)) {
             LazyColumn(state = listState, reverseLayout = true, modifier = Modifier.weight(1f)) {
-                items(count = messages.itemCount, key = { index -> messages.peek(index)?.id ?: index }) { index ->
+                items(count = messages.itemCount) { index ->
                     val msg = messages[index]
                     if (msg != null) {
                         val isMine = msg.senderId == vm.myUid
