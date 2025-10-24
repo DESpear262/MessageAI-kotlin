@@ -13,7 +13,8 @@ data class Mission(
     val dueAt: Long? = null,
     val tags: List<String>? = null,
     val archived: Boolean = false,
-    val sourceMsgId: String? = null
+    val sourceMsgId: String? = null,
+    val casevacCasualties: Int = 0
 )
 
 data class MissionTask(

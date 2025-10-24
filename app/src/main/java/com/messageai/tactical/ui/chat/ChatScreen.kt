@@ -301,6 +301,10 @@ class ChatViewModel @Inject constructor(
         repo.db.messageDao().upsert(entity)
         com.messageai.tactical.data.remote.SendWorker.enqueue(context, id, chatId, me.uid, text, entity.timestamp)
 
+        if (chatId == "system" && text.startsWith("/casevac")) {
+            com.messageai.tactical.modules.ai.work.CasevacWorker.enqueue(context, chatId, id)
+        }
+
         if (text.startsWith("/missionplan")) {
             // Create a mission seeded by AI tasks
             val missionId = missionService.createMission(

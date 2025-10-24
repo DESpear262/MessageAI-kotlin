@@ -31,7 +31,8 @@ class MissionService @Inject constructor(
             "dueAt" to m.dueAt,
             "tags" to m.tags,
             "archived" to false,
-            "sourceMsgId" to m.sourceMsgId
+            "sourceMsgId" to m.sourceMsgId,
+            "casevacCasualties" to m.casevacCasualties
         ).filterValues { it != null }
         ref.set(data).await()
         return ref.id
@@ -57,6 +58,25 @@ class MissionService @Inject constructor(
 
     suspend fun updateMission(missionId: String, fields: Map<String, Any?>) {
         missionsCol().document(missionId).update(fields.filterValues { it != null }).await()
+    }
+
+    suspend fun incrementCasevacCasualties(chatId: String, delta: Int = 1) {
+        // Find latest open CASEVAC mission for this chat
+        val snap = missionsCol()
+            .whereEqualTo("chatId", chatId)
+            .whereEqualTo("archived", false)
+            .whereEqualTo("title", "CASEVAC")
+            .orderBy("updatedAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .get().await()
+        val doc = snap.documents.firstOrNull() ?: return
+        val current = (doc.get("casevacCasualties") as? Number)?.toInt() ?: 0
+        missionsCol().document(doc.id).update(
+            mapOf(
+                "casevacCasualties" to (current + delta),
+                "updatedAt" to System.currentTimeMillis()
+            )
+        ).await()
     }
 
     suspend fun updateTask(missionId: String, taskId: String, fields: Map<String, Any?>) {
