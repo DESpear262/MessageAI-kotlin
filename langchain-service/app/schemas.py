@@ -29,6 +29,12 @@ class MedevacTemplateData(BaseModel):
     missing: List[str] = []
 
 
+class TemplateDocData(BaseModel):
+    templateType: str
+    format: str = "markdown"
+    content: str
+
+
 class SitrepTemplateData(BaseModel):
     format: str = "markdown"
     content: str

@@ -13,6 +13,7 @@ from .schemas import (
     IntentDetectData,
     CasevacWorkflowResponse,
     ConfidenceField,
+    TemplateDocData,
 )
 from .providers import OpenAIProvider
 from .firestore_client import FirestoreReader
@@ -95,6 +96,7 @@ def sitrep_summarize(body: AiRequestEnvelope):
     query = f"Summarize the last {time_window} of unit activity into a SITREP."
     context = rag.build_context(query)
     prompt = f"Context messages:\n{context}\n\nTask: {query}"
+    # Markdown-only output; no PDFs
     summary = llm.chat(
         system_prompt="You summarize tactical chat into concise SITREPs in markdown.",
         user_prompt=prompt,
@@ -102,6 +104,40 @@ def sitrep_summarize(body: AiRequestEnvelope):
     md = summary or "# SITREP\n\n- Time Window: {}\n".format(time_window)
     data = SitrepTemplateData(format="markdown", content=md, sections=[]).model_dump()
     return _ok(request_id, data)
+
+
+# --- Template tools (markdown-only) -----------------------------------------
+@app.post("/template/warnord")
+def warnord_generate(body: AiRequestEnvelope):
+    request_id = body.requestId
+    # Use static markdown skeleton from repo as baseline
+    md = _load_markdown_template("Input file templates/WARNO.md")
+    data = TemplateDocData(templateType="WARNORD", content=md).model_dump()
+    return _ok(request_id, data)
+
+
+@app.post("/template/opord")
+def opord_generate(body: AiRequestEnvelope):
+    request_id = body.requestId
+    md = _load_markdown_template("Input file templates/OPORD_Template.md")
+    data = TemplateDocData(templateType="OPORD", content=md).model_dump()
+    return _ok(request_id, data)
+
+
+@app.post("/template/frago")
+def frago_generate(body: AiRequestEnvelope):
+    request_id = body.requestId
+    md = _load_markdown_template("Input file templates/FRAGO.md")
+    data = TemplateDocData(templateType="FRAGO", content=md).model_dump()
+    return _ok(request_id, data)
+
+
+def _load_markdown_template(path: str) -> str:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return "# Template\n\n_Template content unavailable in this build._"
 
 
 @app.post("/intent/casevac/detect")
