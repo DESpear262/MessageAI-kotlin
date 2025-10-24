@@ -131,10 +131,13 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     LaunchedEffect(listState, vm.myUid) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.index } }
             .map { indices ->
-                indices.mapNotNull { idx ->
-                    val item = messages.peek(idx)
-                    if (item != null && item.senderId != vm.myUid) item.id else null
-                }.distinct()
+                indices
+                    .filter { it >= 0 && it < messages.itemCount }
+                    .mapNotNull { idx ->
+                        val item = messages.peek(idx)
+                        if (item != null && item.senderId != vm.myUid) item.id else null
+                    }
+                    .distinct()
             }
             .distinctUntilChanged()
             .collect { visibleIds ->
