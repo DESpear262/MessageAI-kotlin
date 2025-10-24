@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 import com.google.firebase.auth.FirebaseAuth
@@ -36,7 +37,10 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit, onCreateC
 
     var error by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) { vm.startChatSubscription(scope) }
+    DisposableEffect(Unit) {
+        vm.startChatSubscription(scope)
+        onDispose { vm.stopChatSubscription() }
+    }
 
     Scaffold(
         topBar = {
@@ -97,9 +101,15 @@ class ChatListViewModel @Inject constructor(
     private val presence: PresenceService
 ) : androidx.lifecycle.ViewModel() {
     val meUid: String? get() = auth.currentUser?.uid
-    val chats = chatDao.getChats()
+    val chats = chatDao.getChats().map { list ->
+        val uid = auth.currentUser?.uid
+        if (uid.isNullOrEmpty()) emptyList() else list.filter { chat ->
+            ParticipantHelper.parseParticipants(chat.participants).contains(uid)
+        }
+    }
 
     fun userOnline(uid: String): kotlinx.coroutines.flow.Flow<Boolean> = presence.isUserOnline(uid)
 
     fun startChatSubscription(scope: kotlinx.coroutines.CoroutineScope) { chatService.subscribeMyChats(scope) }
+    fun stopChatSubscription() { chatService.stop() }
 }
