@@ -16,6 +16,8 @@ import com.messageai.tactical.data.remote.MessageListener
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -62,13 +64,15 @@ class RootViewModel @Inject constructor(
     /** Signs out the user, sets presence offline, and updates state. */
     fun logout() {
         viewModelScope.launch {
-            presenceService.goOffline()
-            // Stop any active listeners to avoid cross-user data streaming
-            chatService.stop()
-            messageListener.stop()
-            auth.signOut()
-            // Clear local caches to prevent cross-account leakage
-            db.clearAllTables()
+            withContext(Dispatchers.IO) {
+                presenceService.goOffline()
+                // Stop any active listeners to avoid cross-user data streaming
+                chatService.stop()
+                messageListener.stop()
+                auth.signOut()
+                // Clear local caches to prevent cross-account leakage
+                db.clearAllTables()
+            }
             _isAuthenticated.value = false
         }
     }

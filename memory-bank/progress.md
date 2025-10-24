@@ -74,6 +74,9 @@
 - Block J: Presence indicator dots — done.
 
 ## What Works
+- Logout and account isolation:
+  - No cross-account chat leakage after sign-out/sign-in.
+  - Logout runs on IO dispatcher; Room cleared without UI thread access; listeners stopped; UI returns to auth screen.
 - **AI Integration (Sprint 2 - COMPLETE):** 
   - Block A: Provider-swappable architecture; RAG context from Room; LangChain adapter; secure token handling; offline queue; LocalProvider for testing; 32 unit tests (100% pass)
   - Block B: Firebase Functions proxy with auth, rate limiting, HMAC signing, CORS, timeout controls; TypeScript compiles cleanly

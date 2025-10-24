@@ -11,6 +11,12 @@
   - Block F: CASEVAC Agent Workflow ✅ COMPLETE & QC APPROVED
 
 ## Recent Changes
+- Fixed cross-account data leakage on Android: when User A logs out and User B logs in on the same device, B could previously see A's chats from the local Room cache.
+  - Changes:
+    - Filter chat list Flow by current Firebase UID in `ChatListViewModel`.
+    - Stop Firestore listeners on chat list dispose and on logout.
+    - On logout, run a background task to stop listeners, sign out, and clear Room with `db.clearAllTables()`; only then update UI auth state.
+  - Result: No stale chats leak between accounts; logout no longer crashes.
 - **QC completed for Blocks E & F:**
   - Comprehensive code review report created (`docs/reviews/BLOCKS_E_F_QC_REPORT.md`)
   - Block E: MissionService with real-time Firestore Flow, MissionBoardScreen UI, AIService.extractTasks()

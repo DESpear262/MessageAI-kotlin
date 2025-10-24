@@ -509,6 +509,13 @@ export const aiRouter = onRequest({ cors: true, secrets: [LANGCHAIN_SHARED_SECRE
     return;
   }
 
+  // Rate limit: in-memory fast-path (best-effort; resets on cold start)
+  try {
+    if (!take(uid)) { res.status(429).json({ error: 'Rate limit exceeded' }); return; }
+  } catch (err) {
+    console.error(JSON.stringify({ level: 'error', event: 'ratelimit_mem_error', error: (err as any)?.message }));
+  }
+
   // Rate limit: persistent check (fallback to allow on Firestore error)
   try {
     const allowed = await checkRateLimitPersistent(uid);

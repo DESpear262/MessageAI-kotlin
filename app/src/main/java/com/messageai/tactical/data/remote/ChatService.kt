@@ -17,6 +17,7 @@ import com.messageai.tactical.data.remote.model.ChatDoc
 import com.messageai.tactical.data.remote.model.LastMessage
 import com.messageai.tactical.data.remote.model.ParticipantInfo
 import com.messageai.tactical.util.UnreadHelper
+import com.messageai.tactical.util.ActiveChatTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,7 +30,8 @@ class ChatService @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val chatDao: ChatDao,
-    private val messageDao: MessageDao
+    private val messageDao: MessageDao,
+    private val activeChat: ActiveChatTracker
 ) {
     private val chats = firestore.collection(FirestorePaths.CHATS)
     private var reg: ListenerRegistration? = null
@@ -129,7 +131,11 @@ class ChatService @Inject constructor(
                                         val allMessages = messageDao.getAllMessagesForChat(chatId)
                                         val unreadCount = UnreadHelper.calculateUnreadCount(allMessages, me)
                                         android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [REAL-TIME UPDATE]")
-                                        chatDao.updateUnread(chatId, unreadCount)
+                                        if (activeChat.activeChatId.value == chatId) {
+                                            android.util.Log.d("ChatService", "Skip unread update for active chat $chatId")
+                                        } else {
+                                            chatDao.updateUnread(chatId, unreadCount)
+                                        }
                                     }
                                 }
                             }
@@ -144,7 +150,11 @@ class ChatService @Inject constructor(
                     val allMessages = messageDao.getAllMessagesForChat(chatId)
                     val unreadCount = UnreadHelper.calculateUnreadCount(allMessages, me)
                     android.util.Log.d("ChatService", "Chat $chatId: $unreadCount unread (${allMessages.size} total) [INITIAL]")
-                    chatDao.updateUnread(chatId, unreadCount)
+                    if (activeChat.activeChatId.value == chatId) {
+                        android.util.Log.d("ChatService", "Skip unread update for active chat $chatId")
+                    } else {
+                        chatDao.updateUnread(chatId, unreadCount)
+                    }
                 }
             }
         }

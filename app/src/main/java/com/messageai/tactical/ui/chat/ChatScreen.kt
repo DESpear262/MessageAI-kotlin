@@ -51,6 +51,7 @@ import com.messageai.tactical.data.remote.PresenceService
 import com.messageai.tactical.data.remote.model.MessageDoc
 import com.messageai.tactical.ui.components.PresenceDot
 import com.messageai.tactical.util.CameraHelper
+import com.messageai.tactical.util.ActiveChatTracker
 import com.messageai.tactical.modules.geo.GeoService
 import com.messageai.tactical.util.ParticipantHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -271,6 +272,7 @@ class ChatViewModel @Inject constructor(
     private val messageListener: MessageListener,
     private val imageService: ImageService,
     private val readReceiptUpdater: ReadReceiptUpdater,
+    private val activeChat: ActiveChatTracker,
     private val missionService: com.messageai.tactical.modules.missions.MissionService,
     private val aiService: com.messageai.tactical.modules.ai.AIService
 ) : androidx.lifecycle.ViewModel() {
@@ -290,9 +292,13 @@ class ChatViewModel @Inject constructor(
         if (uid.isNullOrEmpty()) kotlinx.coroutines.flow.flowOf(false) else presence.isUserOnline(uid)
 
     fun startListener(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
+        activeChat.setActive(chatId)
         messageListener.start(chatId, scope)
     }
-    fun stopListener() { messageListener.stop() }
+    fun stopListener() { 
+        activeChat.setActive(null)
+        messageListener.stop() 
+    }
 
     suspend fun markAsRead(chatId: String) {
         // Clear unread count when user opens chat

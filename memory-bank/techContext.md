@@ -19,6 +19,9 @@
 - Firebase project with Auth/Firestore/Storage/FCM; add `google-services.json` to app module per flavor.
 - Firestore offline persistence enabled; notification channel created at app start.
 - LangChain service runs locally via `uvicorn` or Docker; env vars `OPENAI_API_KEY`, `FIRESTORE_PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS`.
+- Multi-user testing guidance:
+  - Use emulator with two test accounts. After logout, verify chat list empties and no stale entries; on relaunch, expect auth screen unless Firebase auto-login occurred before Room clear.
+  - Known pitfall: Room `clearAllTables()` must run on IO and after stopping Firestore listeners to prevent main-thread access and data races.
 
 ## Repo Note
 - This repo also includes a React Native/Expo scaffold (TypeScript). Kotlin Android is the target for this implementation; ignore JS artifacts for Android app, but include them in .gitignore.

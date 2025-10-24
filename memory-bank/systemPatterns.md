@@ -11,6 +11,10 @@
   - AI defaults: Retrofit/OkHttp/Moshi; Firebase ID token bearer; feature-flag via BuildConfig; LocalProvider for offline testing.
 
 ## Key Decisions
+- Account isolation on device:
+  - All Firestore real-time listeners (chats/messages) are stopped on logout and on chat-list dispose.
+  - Local persistence (Room) is cleared on logout from a background dispatcher to avoid main-thread violations.
+  - UI chat list Flow is additionally guarded by current Firebase UID to avoid rendering entries not containing the signed-in user.
 - DI with Hilt across app and workers; WorkManager configured with HiltWorkerFactory.
 - Queue with WorkManager (OneTime for per-message, Periodic for batch sync); exponential backoff.
 - Firestore for realtime sync; enable Firestore offline persistence. Optional RTDB for ephemeral presence/typing.

@@ -7,6 +7,7 @@ import com.messageai.tactical.modules.ai.api.LangChainApi
 import com.messageai.tactical.modules.ai.provider.LangChainAdapter
 import com.messageai.tactical.modules.reporting.ReportService
 import com.messageai.tactical.modules.ai.provider.LocalProvider
+import com.messageai.tactical.modules.ai.provider.LangChainProvider
 import com.messageai.tactical.data.db.AppDatabase
 import com.messageai.tactical.BuildConfig
 import dagger.Module
@@ -65,7 +66,13 @@ object AIModule {
 
     @Provides
     @Singleton
-    fun provideIAIProvider(): IAIProvider = LocalProvider()
+    fun provideIAIProvider(adapter: LangChainAdapter): IAIProvider {
+        return if (BuildConfig.AI_ENABLED) {
+            LangChainProvider(adapter)
+        } else {
+            LocalProvider()
+        }
+    }
 
     @Provides
     @Singleton

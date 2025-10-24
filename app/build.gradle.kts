@@ -67,7 +67,7 @@ android {
             namespace = "com.messageai.tactical.dev"
             // AI feature flags & Cloud Function base URL (dev)
             buildConfigField("boolean", "AI_ENABLED", "true")
-            buildConfigField("String", "CF_BASE_URL", "\"https://us-central1-your-project.cloudfunctions.net/\"")
+            buildConfigField("String", "CF_BASE_URL", "\"http://10.0.2.2:5001/messageai-kotlin/us-central1/aiRouter/v1/\"")
             // This is where your dev google-services.json lives
             // app/src/dev/google-services.json
         }
@@ -78,7 +78,7 @@ android {
             namespace = "com.messageai.tactical"
             // AI feature flags & Cloud Function base URL (prod)
             buildConfigField("boolean", "AI_ENABLED", "true")
-            buildConfigField("String", "CF_BASE_URL", "\"https://us-central1-your-project.cloudfunctions.net/\"")
+            buildConfigField("String", "CF_BASE_URL", "\"https://us-central1-your-project.cloudfunctions.net/aiRouter/v1/\"")
             // app/src/prod/google-services.json
         }
     }
