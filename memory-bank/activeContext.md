@@ -2,6 +2,10 @@
 
 ## Current Focus
 - Sprint 2 AI Integration: ✅ ALL BLOCKS COMPLETE & QC APPROVED (A, B, B2, C, D, E, F)
+  - New: AI Buddy tab (SmartToy) as the single entry point for AI features
+  - Buddy mirrors all AI actions into an AI-only chat (hidden from Chats list)
+  - CASEVAC routed to server workflow; mission created server-side and echoed to Buddy
+  - App routes all AI calls via Functions → LangChain; backend is swappable
   - Block A: AI Core module ✅ COMPLETE & QC APPROVED
   - Block B: Firebase Functions AI gateway ✅ COMPLETE & QC APPROVED
   - Block B2: LangChain Service ✅ COMPLETE & QC APPROVED
