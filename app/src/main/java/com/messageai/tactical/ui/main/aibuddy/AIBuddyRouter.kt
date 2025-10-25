@@ -61,59 +61,16 @@ class AIBuddyRouter @Inject constructor(
      */
     suspend fun handlePrompt(text: String, onBotMessage: (String) -> Unit) {
         val me = auth.currentUser?.uid ?: return
-        val targetChat = activeChat.activeChatId.value ?: run {
-            onBotMessage("I need a chat to act on. Please open a chat, then ask again.")
-            return
-        }
+        val maybeChat = activeChat.activeChatId.value
         // Also mirror the user prompt into the AI Buddy chat for audit
         postToBuddy(senderId = me, text = text)
 
-        val lower = text.lowercase()
-        when {
-            listOf("sitrep", "summarize", "report").any { lower.contains(it) } -> {
-                val r = ReportServiceStub.generateSitrep(appContext, targetChat)
-                val msg = "SITREP ready for chat $targetChat. (Preview saved)"
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-            listOf("warnord", "opord", "frago", "template").any { lower.contains(it) } -> {
-                val msg = "Template generation kicked off. Check the Reports preview screen."
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-            listOf("threat", "ied", "enemy").any { lower.contains(it) } -> {
-                val count = geo.analyzeChatThreats(targetChat).getOrElse { 0 }
-                val msg = "Extracted $count threat items and saved to the map database."
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-            listOf("geofence", "nearby", "check area").any { lower.contains(it) } -> {
-                GeofenceWorker.enqueue(appContext)
-                val msg = "Checking geofence now. I will notify if any live threats are within radius."
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-            listOf("casevac", "medevac", "injury").any { lower.contains(it) } -> {
-                // Call server workflow; app persists nothing, server creates the mission
-                val result = ai.runWorkflow("workflow/casevac/run", mapOf("chatId" to targetChat)).getOrElse { emptyMap() }
-                val missionId = result["missionId"]?.toString() ?: "(pending)"
-                val msg = "CASEVAC workflow started via server. MissionId=$missionId"
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-            listOf("missionplan", "tasks", "plan").any { lower.contains(it) } -> {
-                val tasks = ai.extractTasks(targetChat, 100).getOrElse { emptyList() }
-                val msg = "Generated ${tasks.size} tasks for mission planning."
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-            else -> {
-                // Fallback: ask provider to respond conversationally (not implemented; simple echo for MVP)
-                val msg = "${DEFAULT_FALLBACK_PREFIX} ${text}"
-                onBotMessage(msg)
-                postToBuddy(senderId = AI_UID, text = msg)
-            }
-        }
+        // Call assistant router (LLM decides). The app will still post a friendly fallback if tool='none'.
+        val decision = ai.routeAssistant(maybeChat, text).getOrElse { emptyMap() }
+        val raw = decision["decision"]?.toString() ?: "{\"tool\":\"none\",\"args\":{},\"reply\":\"I didn't understand.\"}"
+        // For MVP, just echo the reply if present; tool execution remains server-choice but app-side execution can be added next.
+        onBotMessage(raw)
+        postToBuddy(senderId = AI_UID, text = raw)
         // Messages mirrored to buddy chat above ensure unread badge parity.
     }
 

@@ -50,6 +50,25 @@ class AIService(
             Result.failure(e)
         }
     }
+
+    /**
+     * Intent detection directly from raw text messages without requiring a chat context.
+     * Used by AI Buddy to parse prompts even when no chat has been opened yet.
+     */
+    suspend fun detectIntentFromText(messages: List<String>): Result<Map<String, Any?>> = runCatching {
+        val resp = adapter.post("intent/casevac/detect", mapOf("messages" to messages), emptyMap())
+        resp.data ?: emptyMap()
+    }
+
+    /** Single entry point for AI Buddy: send prompt and let server choose tools. */
+    suspend fun routeAssistant(chatId: String?, prompt: String): Result<Map<String, Any?>> = runCatching {
+        val resp = adapter.post(
+            path = "assistant/route",
+            payload = mapOf("prompt" to prompt),
+            context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
+        )
+        resp.data ?: emptyMap()
+    }
 }
 
 

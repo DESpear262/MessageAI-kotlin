@@ -18,7 +18,9 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MessageAI">
+        android:theme="@style/Theme.MessageAI"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
         
         <!-- Disable WorkManager auto-initialization so Hilt can provide the factory -->
         <provider

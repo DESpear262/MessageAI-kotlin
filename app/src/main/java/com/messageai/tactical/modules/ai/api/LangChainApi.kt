@@ -44,6 +44,9 @@ interface LangChainApi {
 
     @POST("geo/extract")
     suspend fun extractGeo(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+
+    @POST("assistant/route")
+    suspend fun assistantRoute(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
 }
 
 

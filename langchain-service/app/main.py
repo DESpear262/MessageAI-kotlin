@@ -156,6 +156,46 @@ def sitrep_summarize(body: AiRequestEnvelope):
     return _ok(request_id, data)
 
 
+# --- Assistant router --------------------------------------------------------
+@app.post("/assistant/route")
+def assistant_route(body: AiRequestEnvelope):
+    request_id = body.requestId
+    ctx = body.context or {}
+    chat_id = ctx.get("chatId")
+    payload = body.payload or {}
+    prompt = str(payload.get("prompt", ""))
+
+    # Tools list advertised to the model
+    tools = [
+        "sitrep/summarize",
+        "template/warnord",
+        "template/opord",
+        "template/frago",
+        "threats/extract",
+        "workflow/casevac/run",
+        "tasks/extract",
+        "geo/extract",
+        "none"
+    ]
+
+    msgs = fs.fetch_recent_messages(chat_id, limit=120) if chat_id else []
+    rag.index_messages(msgs)
+    context = rag.build_context("Assistant decision context")
+    decision = llm.chat(
+        system_prompt=(
+            "You decide which tool to call based on the user's prompt. "
+            "Respond with strict JSON: {tool: string in tools list, args: object, reply: optional string}. "
+            "If no tool fits, use tool='none' and include a helpful natural-language reply."
+        ),
+        user_prompt=(
+            f"TOOLS={tools}\nPROMPT={prompt}\nCONTEXT={context}\n"
+        ),
+        model="gpt-4o-mini",
+    )
+    # We return the opaque decision; the app will execute the chosen tool.
+    data = {"decision": decision or "{\"tool\":\"none\",\"args\":{},\"reply\":\"I didn't understand.\"}"}
+    return _ok(request_id, data)
+
 # --- Geo extraction -----------------------------------------------------------
 @app.post("/geo/extract")
 def geo_extract(body: AiRequestEnvelope):

@@ -348,41 +348,22 @@ class ChatViewModel @Inject constructor(
         repo.db.messageDao().upsert(entity)
         com.messageai.tactical.data.remote.SendWorker.enqueue(context, id, chatId, me.uid, text, entity.timestamp)
 
-        if (chatId == "system" && text.startsWith("/casevac")) {
-            com.messageai.tactical.modules.ai.work.CasevacWorker.enqueue(context, chatId, id)
-        }
-
-        if (text.startsWith("/missionplan")) {
-            // Create a mission seeded by AI tasks
-            val missionId = missionService.createMission(
-                com.messageai.tactical.modules.missions.Mission(
-                    chatId = chatId,
-                    title = "Mission Plan",
-                    description = "Auto-generated from /missionplan",
-                    status = "open",
-                    priority = 3,
-                    assignees = listOf(me.uid),
-                    sourceMsgId = id
-                )
+        // If this is the AI Buddy chat, route the prompt and persist the assistant reply to the same chat
+        val buddyChatId = com.messageai.tactical.data.remote.FirestorePaths.directChatId(
+            me.uid, com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID
+        )
+        if (chatId == buddyChatId) {
+            val decision = aiService.routeAssistant(chatId, text).getOrElse { emptyMap() }
+            val raw = decision["decision"]?.toString() ?: "{\"tool\":\"none\",\"args\":{},\"reply\":\"I didn't understand.\"}"
+            val aiMsgId = UUID.randomUUID().toString()
+            com.messageai.tactical.data.remote.SendWorker.enqueue(
+                context = context,
+                messageId = aiMsgId,
+                chatId = chatId,
+                senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+                text = raw,
+                clientTs = System.currentTimeMillis()
             )
-            aiService.extractTasks(chatId, maxMessages = 100).onSuccess { tasks ->
-                tasks.forEach { t ->
-                    val title = t["title"]?.toString() ?: return@forEach
-                    val desc = t["description"]?.toString()
-                    val priority = (t["priority"] as? Number)?.toInt() ?: 3
-                    missionService.addTask(
-                        missionId,
-                        com.messageai.tactical.modules.missions.MissionTask(
-                            missionId = missionId,
-                            title = title,
-                            description = desc,
-                            priority = priority
-                        )
-                    )
-                }
-                // Archive if all tasks immediately done (unlikely on creation)
-                missionService.archiveIfCompleted(missionId)
-            }
         }
     }
 

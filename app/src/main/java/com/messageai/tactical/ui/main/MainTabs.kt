@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.messageai.tactical.modules.reporting.ReportPreviewScreen
+import com.messageai.tactical.modules.reporting.ReportShare
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Main screen container after authentication.
@@ -51,6 +55,12 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                         icon = { Icon(Icons.Default.SmartToy, contentDescription = "AI Buddy") },
                         label = { Text("AI Buddy") }
                     )
+                    NavigationBarItem(
+                        selected = tab == 3,
+                        onClick = { tab = 3 },
+                        icon = { Icon(Icons.Default.Description, contentDescription = "Outputs") },
+                        label = { Text("Outputs") }
+                    )
                 }
             }
         }
@@ -65,6 +75,39 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
             }
             1 -> MissionBoardScreen(chatId = "global")
             2 -> com.messageai.tactical.ui.main.aibuddy.AIBuddyScreen(onBackToChats = { tab = 0 })
+            3 -> {
+                val ctx = LocalContext.current
+                var kind by remember { mutableStateOf<String?>(null) }
+                Column(modifier = Modifier.padding(padding)) {
+                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { kind = "sitrep" }) { Text("SITREP") }
+                        Button(onClick = { kind = "warnord" }) { Text("WARNORD") }
+                        Button(onClick = { kind = "opord" }) { Text("OPORD") }
+                        Button(onClick = { kind = "frago" }) { Text("FRAGO") }
+                    }
+                    if (kind == null) {
+                        Text(
+                            text = "Select a report type to preview.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    } else {
+                        ReportPreviewScreen(
+                            chatId = null,
+                            kind = kind!!,
+                            onShare = { md ->
+                                val file = when (kind) {
+                                    "warnord" -> "warnord_preview.md"
+                                    "opord" -> "opord_preview.md"
+                                    "frago" -> "frago_preview.md"
+                                    else -> "sitrep_preview.md"
+                                }
+                                ReportShare.shareMarkdown(ctx, file, md)
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
