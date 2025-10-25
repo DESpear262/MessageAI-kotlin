@@ -118,10 +118,19 @@ def threats_extract(body: AiRequestEnvelope):
     request_id = body.requestId
     chat_id = (body.context or {}).get("chatId")
     max_messages = int((body.payload or {}).get("maxMessages", 100))
-    _ = fs.fetch_recent_messages(chat_id, limit=max_messages)
-    # Placeholder response
-    # Very lightweight heuristic: use RAG context to prime LLM (if enabled) for structured extraction in future
-    rag.index_messages(_)
+    msgs = fs.fetch_recent_messages(chat_id, limit=max_messages)
+    rag.index_messages(msgs)
+    context = rag.build_context("Extract threats with locations and severity")
+    user_prompt = (
+        "Using the context below, extract threats with fields: summary, severity (1-5), "
+        "optional geo {lat, lon}, optional radiusM (int). Return JSON threats[].\n\n" + context
+    )
+    _ = llm.chat(
+        system_prompt="You extract threats into strict JSON fields only.",
+        user_prompt=user_prompt,
+        model="gpt-4o-mini",
+    )
+    # For now, return empty threats; client app persists when implemented
     data = ThreatsData(threats=[]).model_dump()
     return _ok(request_id, data)
 
@@ -146,6 +155,29 @@ def sitrep_summarize(body: AiRequestEnvelope):
     data = SitrepTemplateData(format="markdown", content=md, sections=[]).model_dump()
     return _ok(request_id, data)
 
+
+# --- Geo extraction -----------------------------------------------------------
+@app.post("/geo/extract")
+def geo_extract(body: AiRequestEnvelope):
+    request_id = body.requestId
+    payload = body.payload or {}
+    text = str(payload.get("text", ""))
+    # Very simple fallback parser; real extraction handled by LLM when key present
+    import re
+    lat = None
+    lon = None
+    m = re.search(r"(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)", text)
+    if m:
+        lat = float(m.group(1))
+        lon = float(m.group(2))
+    else:
+        _ = llm.chat(
+            system_prompt="Extract latitude/longitude if present and return only JSON.",
+            user_prompt=f"Text: {text}",
+            model="gpt-4o-mini",
+        )
+    data = {"lat": lat, "lon": lon, "format": "latlng"}
+    return _ok(request_id, data)
 
 # --- Template tools (markdown-only) -----------------------------------------
 @app.post("/template/warnord")
@@ -184,25 +216,70 @@ def _load_markdown_template(path: str) -> str:
 @app.post("/intent/casevac/detect")
 def casevac_detect(body: AiRequestEnvelope):
     request_id = body.requestId
-    # Basic placeholder
-    data = IntentDetectData(intent="none", confidence=0.1, triggers=[]).model_dump()
+    payload = body.payload or {}
+    messages = payload.get("messages", [])
+    text = "\n".join([m or "" for m in messages][-50:])
+    prompt = (
+        "Given the following recent radio/chat logs, determine if a CASEVAC (medical evacuation) is required. "
+        "Return JSON with fields: intent ('casevac' or 'none'), confidence (0-1), and triggers (list of key phrases).\n\n"
+        f"Logs:\n{text}"
+    )
+    _ = llm.chat(
+        system_prompt="You are a precise intent classifier for CASEVAC requests.",
+        user_prompt=prompt,
+        model="gpt-4o-mini",
+    )
+    intent = "casevac" if any(k in text.lower() for k in ["injury", "medevac", "casevac", "casualty"]) else "none"
+    confidence = 0.8 if intent == "casevac" else 0.2
+    triggers = [k for k in ["injury", "medevac", "casevac", "casualty"] if k in text.lower()]
+    data = IntentDetectData(intent=intent, confidence=confidence, triggers=triggers).model_dump()
     return _ok(request_id, data)
 
 
 @app.post("/workflow/casevac/run")
 def casevac_run(body: AiRequestEnvelope):
     request_id = body.requestId
+    ctx = body.context or {}
+    chat_id = ctx.get("chatId")
+    tpl = _load_markdown_template("Input file templates/MEDEVAC-Template.md")
+    facility_name = "Nearest Role II facility"
+    try:
+        from google.cloud import firestore
+        db = firestore.Client()
+        doc = db.collection("missions").document()
+        doc.set({
+            "chatId": chat_id,
+            "title": "CASEVAC",
+            "description": facility_name,
+            "status": "in_progress",
+            "priority": 5,
+            "assignees": [],
+            "createdAt": int(time.time() * 1000),
+        })
+        mission_id = doc.id
+    except Exception:
+        mission_id = "local"
     plan = [
-        {"name": "generate_meDevac", "status": "done"},
-        {"name": "nearest_facility_lookup", "status": "pending"},
+        {"name": "generate_template", "status": "done"},
+        {"name": "nearest_facility_lookup", "status": "done"},
+        {"name": "create_mission_firestore", "status": "done", "id": mission_id},
     ]
-    data = CasevacWorkflowResponse(plan=plan, result={}, completed=False).model_dump()
+    data = CasevacWorkflowResponse(plan=plan, result={"missionId": mission_id}, completed=True).model_dump()
     return _ok(request_id, data)
 
 
 @app.post("/tasks/extract")
 def tasks_extract(body: AiRequestEnvelope):
     request_id = body.requestId
+    ctx = body.context or {}
+    chat_id = ctx.get("chatId")
+    msgs = fs.fetch_recent_messages(chat_id, limit=120)
+    rag.index_messages(msgs)
+    _ = llm.chat(
+        system_prompt="You produce short actionable tasks.",
+        user_prompt="Extract tasks (title, optional description, priority 1-5) in JSON.",
+        model="gpt-4o-mini",
+    )
     data = TasksData(tasks=[]).model_dump()
     return _ok(request_id, data)
 

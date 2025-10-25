@@ -104,7 +104,8 @@ class ChatListViewModel @Inject constructor(
     val chats = chatDao.getChats().map { list ->
         val uid = auth.currentUser?.uid
         if (uid.isNullOrEmpty()) emptyList() else list.filter { chat ->
-            ParticipantHelper.parseParticipants(chat.participants).contains(uid)
+            val parts = ParticipantHelper.parseParticipants(chat.participants)
+            parts.contains(uid) && !parts.contains(com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID)
         }
     }
 

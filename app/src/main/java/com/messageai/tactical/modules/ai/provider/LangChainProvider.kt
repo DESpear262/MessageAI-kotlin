@@ -26,9 +26,13 @@ class LangChainProvider(
         ).data ?: emptyMap()
     }
 
-    override suspend fun extractGeoData(text: String): Result<Map<String, Any?>> {
-        // No dedicated remote endpoint yet; return a minimal, schema-shaped payload.
-        return Result.success(mapOf("lat" to 0.0, "lng" to 0.0, "format" to "latlng"))
+    override suspend fun extractGeoData(text: String): Result<Map<String, Any?>> = runCatching {
+        val res = adapter.post(
+            path = "geo/extract",
+            payload = mapOf("text" to text),
+            context = emptyMap()
+        )
+        res.data ?: emptyMap()
     }
 
     override suspend fun summarizeThreats(messages: List<MessageEntity>): Result<List<Map<String, Any?>>> = runCatching {

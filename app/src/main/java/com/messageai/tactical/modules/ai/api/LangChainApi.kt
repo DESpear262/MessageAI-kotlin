@@ -41,6 +41,9 @@ interface LangChainApi {
 
     @POST("workflow/casevac/run")
     suspend fun runCasevac(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+
+    @POST("geo/extract")
+    suspend fun extractGeo(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
 }
 
 

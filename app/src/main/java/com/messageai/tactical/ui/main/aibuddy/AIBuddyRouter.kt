@@ -8,12 +8,14 @@ import com.messageai.tactical.modules.ai.AIService
 import com.messageai.tactical.modules.ai.work.CasevacWorker
 import com.messageai.tactical.modules.geo.GeoService
 import com.messageai.tactical.data.remote.GeofenceWorker
+import com.messageai.tactical.data.remote.SendWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.UUID
 
 /**
  * Routes natural-language prompts to available AI capabilities.
@@ -61,38 +63,56 @@ class AIBuddyRouter @Inject constructor(
             onBotMessage("I need a chat to act on. Please open a chat, then ask again.")
             return
         }
+        // Also mirror the user prompt into the AI Buddy chat for audit
+        postToBuddy(senderId = me, text = text)
 
         val lower = text.lowercase()
         when {
             listOf("sitrep", "summarize", "report").any { lower.contains(it) } -> {
                 val r = ReportServiceStub.generateSitrep(appContext, targetChat)
-                onBotMessage("SITREP ready (preview saved). ${r}")
+                val msg = "SITREP ready for chat $targetChat. (Preview saved)"
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
             listOf("warnord", "opord", "frago", "template").any { lower.contains(it) } -> {
-                onBotMessage("Template generation kicked off. Check the Reports preview screen.")
+                val msg = "Template generation kicked off. Check the Reports preview screen."
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
             listOf("threat", "ied", "enemy").any { lower.contains(it) } -> {
                 val count = geo.analyzeChatThreats(targetChat).getOrElse { 0 }
-                onBotMessage("Extracted $count threat items and saved to the map database.")
+                val msg = "Extracted $count threat items and saved to the map database."
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
             listOf("geofence", "nearby", "check area").any { lower.contains(it) } -> {
                 GeofenceWorker.enqueue(appContext)
-                onBotMessage("Checking geofence now. I will notify if any live threats are within radius.")
+                val msg = "Checking geofence now. I will notify if any live threats are within radius."
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
             listOf("casevac", "medevac", "injury").any { lower.contains(it) } -> {
-                CasevacWorker.enqueue(appContext, targetChat, null)
-                onBotMessage("CASEVAC workflow started.")
+                // Call server workflow; app persists nothing, server creates the mission
+                val result = ai.runWorkflow("workflow/casevac/run", mapOf("chatId" to targetChat)).getOrElse { emptyMap() }
+                val missionId = result["missionId"]?.toString() ?: "(pending)"
+                val msg = "CASEVAC workflow started via server. MissionId=$missionId"
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
             listOf("missionplan", "tasks", "plan").any { lower.contains(it) } -> {
                 val tasks = ai.extractTasks(targetChat, 100).getOrElse { emptyList() }
-                onBotMessage("Generated ${tasks.size} tasks for mission planning.")
+                val msg = "Generated ${tasks.size} tasks for mission planning."
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
             else -> {
                 // Fallback: ask provider to respond conversationally (not implemented; simple echo for MVP)
-                onBotMessage("${DEFAULT_FALLBACK_PREFIX} ${text}")
+                val msg = "${DEFAULT_FALLBACK_PREFIX} ${text}"
+                onBotMessage(msg)
+                postToBuddy(senderId = AI_UID, text = msg)
             }
         }
-        // TODO: also write these bot messages into the AI Buddy Firestore chat for unread badge parity (future step)
+        // Messages mirrored to buddy chat above ensure unread badge parity.
     }
 
     var lastOpenChatId: String? = null
@@ -101,6 +121,19 @@ class AIBuddyRouter @Inject constructor(
         const val AI_UID = "ai-buddy"
         private const val KEY_ONBOARDED = "onboarded"
         private const val DEFAULT_FALLBACK_PREFIX = "I noted:"
+    }
+
+    private fun postToBuddy(senderId: String, text: String) {
+        val chatId = try { FirestorePaths.directChatId(auth.currentUser?.uid ?: return, AI_UID) } catch (_: Exception) { return }
+        val id = UUID.randomUUID().toString()
+        SendWorker.enqueue(
+            context = appContext,
+            messageId = id,
+            chatId = chatId,
+            senderId = senderId,
+            text = text,
+            clientTs = System.currentTimeMillis()
+        )
     }
 }
 

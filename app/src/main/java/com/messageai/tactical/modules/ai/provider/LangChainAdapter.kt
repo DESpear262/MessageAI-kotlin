@@ -21,6 +21,7 @@ class LangChainAdapter(private val api: LangChainApi) {
             "sitrep/summarize" -> api.summarizeSitrep(req)
             "intent/casevac/detect" -> api.detectCasevac(req)
             "workflow/casevac/run" -> api.runCasevac(req)
+            "geo/extract" -> api.extractGeo(req)
             else -> throw IllegalArgumentException("Unsupported path $path")
         }
     }

@@ -31,7 +31,7 @@ class AIService(
     }
 
     suspend fun runWorkflow(path: String, payload: Map<String, Any?>): Result<Map<String, Any?>> {
-        // Simple passthrough for now; provider may delegate to adapter
+        // Simple passthrough; provider may delegate to adapter. Context can be merged into payload by provider.
         return provider.runWorkflow(path, payload)
     }
 
