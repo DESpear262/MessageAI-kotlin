@@ -31,25 +31,27 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
     var tab by remember { mutableStateOf(0) }
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = tab == 0,
-                    onClick = { tab = 0 },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = "Chats") },
-                    label = { Text("Chats") }
-                )
-                NavigationBarItem(
-                    selected = tab == 1,
-                    onClick = { tab = 1 },
-                    icon = { Icon(Icons.Default.ListAlt, contentDescription = "Missions") },
-                    label = { Text("Missions") }
-                )
-                NavigationBarItem(
-                    selected = tab == 2,
-                    onClick = { tab = 2 },
-                    icon = { Icon(Icons.Default.SmartToy, contentDescription = "AI Buddy") },
-                    label = { Text("AI Buddy") }
-                )
+            if (tab != 2) {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = tab == 0,
+                        onClick = { tab = 0 },
+                        icon = { Icon(Icons.Default.Chat, contentDescription = "Chats") },
+                        label = { Text("Chats") }
+                    )
+                    NavigationBarItem(
+                        selected = tab == 1,
+                        onClick = { tab = 1 },
+                        icon = { Icon(Icons.Default.ListAlt, contentDescription = "Missions") },
+                        label = { Text("Missions") }
+                    )
+                    NavigationBarItem(
+                        selected = tab == 2,
+                        onClick = { tab = 2 },
+                        icon = { Icon(Icons.Default.SmartToy, contentDescription = "AI Buddy") },
+                        label = { Text("AI Buddy") }
+                    )
+                }
             }
         }
     ) { padding ->
