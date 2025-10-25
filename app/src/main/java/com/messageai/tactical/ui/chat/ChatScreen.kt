@@ -156,14 +156,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                     }
                 },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
-                actions = {
-                    // Testing-only: summarize threats in current area
-                    val geo = androidx.hilt.navigation.compose.hiltViewModel<GeoViewModel>()
-                    TextButton(onClick = { geo.summarizeNearby() }) { Text("Summarize threats") }
-                    // Testing-only: invoke AI summarization and persist to Firestore
-                    TextButton(onClick = { geo.analyzeChatThreats(chatId) }) { Text("AI summarize") }
-                    TextButton(onClick = { com.messageai.tactical.data.remote.GeofenceWorker.enqueue(context) }) { Text("Check geofence") }
-                }
+                actions = { }
             )
         }
     ) { padding ->
@@ -297,6 +290,10 @@ class ChatViewModel @Inject constructor(
     fun startListener(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
         activeChat.setActive(chatId)
         messageListener.start(chatId, scope)
+        // Inform AI Buddy of the last open chat for routing default actions
+        try {
+            com.messageai.tactical.di.ServiceLocator.aiBuddyRouter?.lastOpenChatId = chatId
+        } catch (_: Exception) {}
     }
     fun stopListener() { 
         activeChat.setActive(null)
