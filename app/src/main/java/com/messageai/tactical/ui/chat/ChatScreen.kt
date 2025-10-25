@@ -290,10 +290,6 @@ class ChatViewModel @Inject constructor(
     fun startListener(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
         activeChat.setActive(chatId)
         messageListener.start(chatId, scope)
-        // Inform AI Buddy of the last open chat for routing default actions
-        try {
-            com.messageai.tactical.di.ServiceLocator.aiBuddyRouter?.lastOpenChatId = chatId
-        } catch (_: Exception) {}
     }
     fun stopListener() { 
         activeChat.setActive(null)

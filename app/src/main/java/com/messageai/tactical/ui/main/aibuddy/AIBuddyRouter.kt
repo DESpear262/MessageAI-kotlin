@@ -9,6 +9,7 @@ import com.messageai.tactical.modules.ai.work.CasevacWorker
 import com.messageai.tactical.modules.geo.GeoService
 import com.messageai.tactical.data.remote.GeofenceWorker
 import com.messageai.tactical.data.remote.SendWorker
+import com.messageai.tactical.util.ActiveChatTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -27,7 +28,8 @@ class AIBuddyRouter @Inject constructor(
     private val chatService: ChatService,
     private val ai: AIService,
     private val geo: GeoService,
-    private val appContext: android.content.Context
+    private val appContext: android.content.Context,
+    private val activeChat: ActiveChatTracker
 ) {
     private val prefs: SharedPreferences by lazy {
         appContext.getSharedPreferences("ai_buddy", android.content.Context.MODE_PRIVATE)
@@ -59,7 +61,7 @@ class AIBuddyRouter @Inject constructor(
      */
     suspend fun handlePrompt(text: String, onBotMessage: (String) -> Unit) {
         val me = auth.currentUser?.uid ?: return
-        val targetChat = lastOpenChatId ?: run {
+        val targetChat = activeChat.activeChatId.value ?: run {
             onBotMessage("I need a chat to act on. Please open a chat, then ask again.")
             return
         }
@@ -114,8 +116,6 @@ class AIBuddyRouter @Inject constructor(
         }
         // Messages mirrored to buddy chat above ensure unread badge parity.
     }
-
-    var lastOpenChatId: String? = null
 
     companion object {
         const val AI_UID = "ai-buddy"

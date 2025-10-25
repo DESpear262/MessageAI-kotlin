@@ -58,14 +58,7 @@ class MessageAiApp : Application(), Configuration.Provider {
             }
         }
 
-        // Expose AIBuddyRouter via lightweight locator for cross-VM access
-        try {
-            val router = dagger.hilt.android.EntryPointAccessors.fromApplication(
-                this,
-                AIBuddyEntryPoint::class.java
-            ).router()
-            com.messageai.tactical.di.ServiceLocator.aiBuddyRouter = router
-        } catch (_: Exception) {}
+        // Avoid early access to Hilt entrypoints to prevent dependency cycles.
     }
 
     override val workManagerConfiguration: Configuration
@@ -84,10 +77,4 @@ class MessageAiApp : Application(), Configuration.Provider {
             nm.createNotificationChannel(channel)
         }
     }
-}
-
-@dagger.hilt.EntryPoint
-@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
-interface AIBuddyEntryPoint {
-    fun router(): com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter
 }
