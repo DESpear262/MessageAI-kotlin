@@ -6,6 +6,8 @@
   - Buddy mirrors all AI actions into an AI-only chat (hidden from Chats list)
   - CASEVAC routed to server workflow; mission created server-side and echoed to Buddy
   - App routes all AI calls via Functions → LangChain; backend is swappable
+  - Non-determinism rule: ALL tool selection is done by LLM (assistant/route). No regex/keyword routing or defaults in app.
+  - Outputs tab shows a report selector; nothing runs until user chooses explicitly.
   - Block A: AI Core module ✅ COMPLETE & QC APPROVED
   - Block B: Firebase Functions AI gateway ✅ COMPLETE & QC APPROVED
   - Block B2: LangChain Service ✅ COMPLETE & QC APPROVED
@@ -50,6 +52,7 @@
   - `FIRESTORE_PROJECT_ID` in LangChain service
 - Update Android `BuildConfig.CF_BASE_URL` to production Firebase Function URL
 - Conduct end-to-end smoke testing (Android → CF → LangChain → response)
+ - Verify AI Buddy chat persistence end-to-end on cold-install; confirm both directions render in standard ChatScreen.
 
 ## Risks
 - In-memory rate limiting resets on cold start (acceptable for MVP)

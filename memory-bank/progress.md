@@ -80,8 +80,8 @@
 - **AI Integration (Sprint 2 - COMPLETE):** 
   - Block A: Provider-swappable architecture; RAG context from Room; LangChain adapter; secure token handling; offline queue; LocalProvider for testing; 32 unit tests (100% pass)
   - Block B: Firebase Functions proxy with auth, rate limiting, HMAC signing, CORS, timeout controls; TypeScript compiles cleanly
-  - Block B2: FastAPI LangChain service with 5+ AI endpoints, RAG, Firestore integration, OpenAI, Docker containerization
-    - New endpoints finalized: `geo/extract`; upgraded `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`
+  - Block B2: FastAPI LangChain service with 6+ AI endpoints, RAG, Firestore integration, OpenAI, Docker containerization
+    - New/Upgraded endpoints: `assistant/route` (LLM tool router), `geo/extract`, `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`
   - End-to-end data contracts verified; Postman collection ready
 - **Core Chat:** Text send pipeline; image pipeline; UI image rendering; WorkManager + Hilt integration; presence dots via RTDB.
 - **Test Suite:** 71/72 tests passing (98% success rate); Block A tests 100% (32/32).
@@ -99,6 +99,7 @@ Sprint 2 AI Integration is code-complete. Next steps:
   - Enable Swagger/OpenAPI docs
   - Add structured logging with correlation IDs
   - Expand AI Buddy prompts/tooling and server parsers to return non-empty task/threat lists
+  - Add client-side executor to parse assistant decisions (tool+args) and run selected tools explicitly
 
 ## Known Issues / Notes
 - Indeterminate progress for uploads (acceptable for MVP).

@@ -21,11 +21,12 @@
 - Media via Firebase Storage; Coil for caching and display.
 - AI: Separate REST paths behind Cloud Function proxy; request envelope `{requestId, context, payload}` and matching response envelope; requestId logged client-side.
   - AI Buddy: AI-only chat (hidden from list) mirrors prompts and results; all AI operations initiated via Buddy tab. CASEVAC workflow executes server-side and returns `missionId`.
+  - Assistant Router: `assistant/route` endpoint lets LLM select tools (SITREP/templates/threats/CASEVAC/tasks/geo/none). The app must not infer tools.
 - CF AI Gateway:
   - `aiRouter` (/v1/*) with Firebase ID token verification, HMAC signing headers (`x-sig`, `x-sig-ts`), per‑UID token-bucket rate limiting, 64KB payload cap, per-endpoint timeouts, structured logs.
   - `aiRouterSimple?path=...` for local testing.
   - Defaults to local `http://127.0.0.1:8000` when `LANGCHAIN_BASE_URL` is not set.
-  - New endpoints: `geo/extract` (geo parsing), upgraded `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`.
+  - New endpoints: `geo/extract` (geo parsing), upgraded `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`, and `assistant/route`.
 
 ## Media Pipeline Patterns
 - Deterministic storage paths: `chat-media/{chatId}/{messageId}.jpg` using deterministic chat IDs and UUID message IDs.
