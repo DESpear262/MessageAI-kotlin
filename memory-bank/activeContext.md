@@ -52,38 +52,24 @@
   - Cloud Function `aiRouter` timeouts increased (DEV): fast=20s, slow=60s; template endpoints use slow.
   - Android OkHttp timeouts increased (connect=15s, read=45s, write=30s) to avoid client-side read timeouts during LLM fills.
 
-### Threat pipeline wiring (2025-10-26)
-- Android now passes `chatId` via context to CF `/v1/threats/extract`, allowing backend to fetch recent messages directly.
-- AI Buddy tool handling updated:
-  - When `assistant/route` selects `threats/extract`, the app calls `GeoService.analyzeChatThreats(chatId)` which persists extracted threats to Firestore `threats`.
-- ChatScreen mirrors the same behavior when routing inside the Buddy chat.
-- Added `ThreatAnalyzeWorker` and a lightweight heuristic in `ChatViewModel.send` to enqueue analysis when a sent message likely indicates a threat (e.g., "IED", "shots fired").
-- Geofence and CASEVAC workers hardened against permission denials (SecurityException) to satisfy lint and avoid crashes when notification/location permissions are missing.
-
-### CASEVAC Observability (2025-10-26)
-- Android now emits structured JSON logs for each CASEVAC step with a per-run `runId`.
-- All AI calls forward `x-request-id` header equal to the envelope `requestId` for end-to-end correlation (Android ↔ CF ↔ LangChain).
-- `CASEVAC_README.md` documents log events and troubleshooting steps.
-
-## How FRAGO/OPORD/WARNORD Fill Now Works
-1) App sends prompt + candidate chats to `assistant/route`; LLM selects tool and (server) infers chat when needed (Buddy chat excluded).
-2) App executes template tool; CF proxies to LangChain with 60s timeout.
-3) LangChain loads template and builds RAG context using precomputed chunk embeddings; performs only a query embed; fills placeholders via LLM; returns markdown.
+### Threat pipeline (2025-10-26)
+- Proactive “gate then escalate” design:
+  - `/assistant/gate` uses gpt-4.1-nano (triple vote) to decide escalation; returns `{escalate}` and logs votes.
+  - On escalate=true, `RouteExecutor` calls `/assistant/route` (4o-mini) and then executes the chosen tool.
+- Threat extraction is now strict single-message, no chat history:
+  - `/threats/extract` evaluates only the provided message (`payload.message` or `messages[triggerMessageId]` or `prompt`).
+  - Attaches `sourceMsgId/sourceMsgText`; uses `currentLocation` for offsets when needed.
+  - Structured logging added: resolve → prompt → raw → parse → fallback → result.
+- Android execution & persistence:
+  - `RouteExecutor` executes `threats/extract` with the triggering message and persists threats immediately to Firestore `threats`.
+  - Falls back to device location when no absolute coords provided.
 
 ## Next Steps
-- Deploy LangChain service to Cloud Run/GKE (private network)
-- Configure production environment variables:
-  - `LANGCHAIN_BASE_URL` in Cloud Functions
-  - `LANGCHAIN_SHARED_SECRET` in Cloud Functions secrets
-  - `ALLOWED_ORIGINS` for CORS
-  - `OPENAI_API_KEY` in LangChain service
-  - `FIRESTORE_PROJECT_ID` in LangChain service
-- Update Android `BuildConfig.CF_BASE_URL` to production Firebase Function URL
-- Conduct end-to-end smoke testing (Android → CF → LangChain → response)
- - Verify AI Buddy chat persistence end-to-end on cold-install; confirm both directions render in standard ChatScreen.
+- Optionally strip codeblock wrappers (```json) server-side before JSON parsing in `/threats/extract`.
+- Add stored `rationale` for auditability of threat decisions.
+- Tighten unit tests for gate, route, and single-message tool contracts.
 
 ## Risks
-- In-memory rate limiting resets on cold start (acceptable for MVP)
-- In-memory RAG cache (no persistence between requests)
-- All limitations documented and acceptable for MVP
+- Gate escalations rely on upstream model; triple-vote mitigates flukes but adds 2× calls (still cheap).
+- Location permissions may be missing; persistence uses fallback rules and guards.
 
