@@ -176,7 +176,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(18.dp))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(bubbleColor)
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
                                     .widthIn(min = 40.dp, max = 280.dp)

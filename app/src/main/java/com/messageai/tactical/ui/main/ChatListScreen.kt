@@ -45,11 +45,15 @@ fun ChatListScreen(onOpenChat: (String) -> Unit, onLogout: () -> Unit, onCreateC
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chats") },
+                title = { Text("Chats", style = MaterialTheme.typography.titleLarge) },
                 actions = { TextButton(onClick = onLogout) { Text("Logout") } }
             )
         },
-        floatingActionButton = { FloatingActionButton(onClick = onCreateChat) { Text("+") } }
+        floatingActionButton = {
+            FloatingActionButton(onClick = onCreateChat, containerColor = MaterialTheme.colorScheme.primary) {
+                Text("+", color = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(12.dp)) {
             if (!error.isNullOrEmpty()) {
@@ -72,17 +76,17 @@ private fun ChatRow(vm: ChatListViewModel, chat: ChatEntity, onClick: () -> Unit
 
     ListItem(
         leadingContent = { PresenceDot(online) },
-        headlineContent = { Text(chat.name ?: "Chat") },
-        supportingContent = { Text(chat.lastMessage ?: "") },
-        trailingContent = { 
+        headlineContent = { Text(chat.name ?: "Chat", color = MaterialTheme.colorScheme.onSurface) },
+        supportingContent = { Text(chat.lastMessage ?: "", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)) },
+        trailingContent = {
             if (chat.unreadCount > 0) {
                 Badge(
                     modifier = Modifier.size(24.dp),
-                    containerColor = MaterialTheme.colorScheme.error
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Text(
                         text = if (chat.unreadCount > 99) "99+" else chat.unreadCount.toString(),
-                        color = MaterialTheme.colorScheme.onError,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
