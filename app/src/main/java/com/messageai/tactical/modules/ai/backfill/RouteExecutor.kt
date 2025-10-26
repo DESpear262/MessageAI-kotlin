@@ -47,11 +47,25 @@ class RouteExecutor @AssistedInject constructor(
                     // Persist threats immediately to Firestore
                     persistThreats(chatId, threats, loc)
                 }
-                // CASEVAC remote-first; fall back to local worker if remote fails
+                // CASEVAC remote-first; fall back to local worker if remote fails or returns placeholder mission
                 "workflow/casevac/run" -> {
-                    val ok = ai.runCasevacRemote(chatId, emptyMap()).isSuccess
-                    if (!ok && !chatId.isNullOrBlank()) {
+                    android.util.Log.i("RouteExecutor", "casevac_remote_start chatId=${chatId ?: "null"} msgId=${inputData.getString(KEY_MESSAGE_ID) ?: ""}")
+                    val res = ai.runCasevacRemote(chatId, emptyMap())
+                    if (res.isSuccess) {
+                        val data = res.getOrNull() ?: emptyMap()
+                        val missionId = (data["missionId"] as? String)
+                            ?: ((data["result"] as? Map<*, *>)?.get("missionId") as? String)
+                        android.util.Log.i("RouteExecutor", "casevac_remote_ok missionId=${missionId ?: ""}")
+                        // If backend couldn't persist (e.g., local dev), missionId may be missing or 'local'.
+                        if ((missionId == null || missionId == "local") && !chatId.isNullOrBlank()) {
+                            android.util.Log.i("RouteExecutor", "casevac_fallback_local enqueue CasevacWorker")
+                            com.messageai.tactical.modules.ai.work.CasevacWorker.enqueue(applicationContext, chatId, inputData.getString(KEY_MESSAGE_ID))
+                            try { com.messageai.tactical.notifications.CasevacNotifier.notifyStart(applicationContext, chatId) } catch (_: Exception) {}
+                        }
+                    } else if (!chatId.isNullOrBlank()) {
+                        android.util.Log.w("RouteExecutor", "casevac_remote_failed; enqueue local worker")
                         com.messageai.tactical.modules.ai.work.CasevacWorker.enqueue(applicationContext, chatId, inputData.getString(KEY_MESSAGE_ID))
+                        try { com.messageai.tactical.notifications.CasevacNotifier.notifyStart(applicationContext, chatId) } catch (_: Exception) {}
                     }
                 }
                 // For other tools, do nothing here; existing modules will execute with their own context
