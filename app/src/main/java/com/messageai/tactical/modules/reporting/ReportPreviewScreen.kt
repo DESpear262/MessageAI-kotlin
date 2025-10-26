@@ -1,6 +1,8 @@
 package com.messageai.tactical.modules.reporting
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -44,7 +46,13 @@ fun ReportPreviewScreen(
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             Spacer(Modifier.height(12.dp))
-            Text(text = md ?: "", fontFamily = FontFamily.Monospace)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(text = md ?: "", fontFamily = FontFamily.Monospace)
+            }
         }
     }
 }
