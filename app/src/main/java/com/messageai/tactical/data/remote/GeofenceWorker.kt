@@ -74,8 +74,13 @@ class GeofenceWorker @AssistedInject constructor(
 
 private suspend fun FusedLocationProviderClient.lastLocation(): Location? =
     kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-        this.lastLocation.addOnSuccessListener { loc -> cont.resume(loc) {} }
-            .addOnFailureListener { e -> cont.resume(null) {} }
+        try {
+            this.lastLocation
+                .addOnSuccessListener { loc -> cont.resume(loc) {} }
+                .addOnFailureListener { _ -> cont.resume(null) {} }
+        } catch (_: SecurityException) {
+            cont.resume(null) {}
+        }
     }
 
 private suspend fun FusedLocationProviderClient.awaitNullable(): Location? = lastLocation()

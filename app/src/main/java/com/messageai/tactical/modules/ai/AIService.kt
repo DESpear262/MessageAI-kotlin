@@ -21,8 +21,19 @@ class AIService(
     suspend fun extractGeoData(text: String): Result<Map<String, Any?>> = provider.extractGeoData(text)
 
     suspend fun summarizeThreats(chatId: String, maxMessages: Int): Result<List<Map<String, Any?>>> {
-        val rows = dao.getLastMessages(chatId, maxMessages)
-        return provider.summarizeThreats(rows)
+        // Send chatId as context so the backend can fetch and analyze recent messages itself.
+        return try {
+            val resp = adapter.post(
+                path = "threats/extract",
+                payload = mapOf("maxMessages" to maxMessages),
+                context = mapOf("chatId" to chatId)
+            )
+            val data = resp.data ?: emptyMap()
+            @Suppress("UNCHECKED_CAST")
+            Result.success((data["threats"] as? List<Map<String, Any?>>) ?: emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun detectIntent(chatId: String, minMessages: Int): Result<Map<String, Any?>> {

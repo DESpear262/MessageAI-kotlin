@@ -144,6 +144,20 @@ class AIBuddyRouter @Inject constructor(
                             .onFailure { postToBuddy(senderId = AI_UID, text = "SITREP generation failed: ${it.message}") }
                     }
                 }
+                "threats/extract" -> {
+                    val targetChat = contextChat
+                    if (targetChat.isNullOrBlank()) {
+                        postToBuddy(senderId = AI_UID, text = "I need a chat selected to analyze threats. Open a chat and ask again.")
+                    } else {
+                        // Use GeoService to analyze threats and persist results
+                        val saved = geo.analyzeChatThreats(targetChat)
+                        saved.onSuccess { count ->
+                            postToBuddy(senderId = AI_UID, text = "Logged $count threat(s) from the selected chat.")
+                        }.onFailure { e ->
+                            postToBuddy(senderId = AI_UID, text = "Threat analysis failed: ${e.message}")
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.w("AIBuddyRouter", "tool execution error: ${e.message}")

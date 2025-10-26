@@ -350,6 +350,14 @@ class ChatViewModel @Inject constructor(
         )
         repo.db.messageDao().upsert(entity)
         com.messageai.tactical.data.remote.SendWorker.enqueue(context, id, chatId, me.uid, text, entity.timestamp)
+        // Heuristic: if message text appears to describe a nearby threat, trigger analysis for its chat.
+        if (!text.isNullOrBlank()) {
+            val t = text.lowercase()
+            val looksLikeThreat = listOf("gunfire", "shots fired", "active shooter", "enemy", "contact", "ied", "ambush", "hostile", "attack").any { t.contains(it) }
+            if (looksLikeThreat) {
+                try { com.messageai.tactical.data.remote.ThreatAnalyzeWorker.enqueue(context, chatId, 100) } catch (_: Exception) {}
+            }
+        }
 
         // If this is the AI Buddy chat, route the prompt and persist the assistant reply to the same chat
         val buddyChatId = com.messageai.tactical.data.remote.FirestorePaths.directChatId(
@@ -451,6 +459,24 @@ class ChatViewModel @Inject constructor(
                             reportService.generateSITREP(contextChat, "6h")
                                 .onSuccess { postImmediate("SITREP ready for the current chat. Open Outputs to view.", context, chatId) }
                                 .onFailure { postImmediate("SITREP generation failed: ${it.message}", context, chatId) }
+                        }
+                    }
+                    "threats/extract" -> {
+                        val targetChat = contextChat
+                        if (targetChat.isNullOrBlank()) {
+                            postImmediate("I need a chat selected to analyze threats. Open a chat and ask again.", context, chatId)
+                        } else {
+                            val saved = com.messageai.tactical.modules.geo.GeoService(
+                                context = context,
+                                firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance(),
+                                auth = com.google.firebase.auth.FirebaseAuth.getInstance(),
+                                aiService = aiService
+                            ).analyzeChatThreats(targetChat)
+                            saved.onSuccess { count ->
+                                postImmediate("Logged $count threat(s) from the selected chat.", context, chatId)
+                            }.onFailure { e ->
+                                postImmediate("Threat analysis failed: ${e.message}", context, chatId)
+                            }
                         }
                     }
                 }

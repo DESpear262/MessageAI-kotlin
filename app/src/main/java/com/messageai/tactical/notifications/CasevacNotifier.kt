@@ -18,7 +18,9 @@ object CasevacNotifier {
             .setContentTitle("CASEVAC started")
             .setContentText("Coordinating medical evacuation…")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-        NotificationManagerCompat.from(context).notify((System.currentTimeMillis()%Int.MAX_VALUE).toInt(), builder.build())
+        try {
+            NotificationManagerCompat.from(context).notify((System.currentTimeMillis()%Int.MAX_VALUE).toInt(), builder.build())
+        } catch (_: SecurityException) { /* Notification permission may be denied on Android 13+ */ }
     }
 
     fun notifyComplete(context: Context, facilityName: String?) {
@@ -28,7 +30,9 @@ object CasevacNotifier {
             .setContentTitle("CASEVAC completed")
             .setContentText(facilityName ?: "Nearest facility assigned")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-        NotificationManagerCompat.from(context).notify((System.currentTimeMillis()%Int.MAX_VALUE).toInt(), builder.build())
+        try {
+            NotificationManagerCompat.from(context).notify((System.currentTimeMillis()%Int.MAX_VALUE).toInt(), builder.build())
+        } catch (_: SecurityException) { /* Notification permission may be denied on Android 13+ */ }
     }
 
     private fun ensureChannel(context: Context) {

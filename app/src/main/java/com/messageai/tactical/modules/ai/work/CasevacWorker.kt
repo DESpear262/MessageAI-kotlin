@@ -122,8 +122,13 @@ private suspend fun CasevacWorker.awaitLocationNullable(): android.location.Loca
 
 private suspend fun FusedLocationProviderClient.awaitNullable(): android.location.Location? =
     kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-        lastLocation.addOnSuccessListener { loc -> cont.resume(loc) {} }
-            .addOnFailureListener { cont.resume(null) {} }
+        try {
+            lastLocation
+                .addOnSuccessListener { loc -> cont.resume(loc) {} }
+                .addOnFailureListener { cont.resume(null) {} }
+        } catch (_: SecurityException) {
+            cont.resume(null) {}
+        }
     }
 
 
