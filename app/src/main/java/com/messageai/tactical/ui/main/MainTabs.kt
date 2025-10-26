@@ -7,8 +7,7 @@
 package com.messageai.tactical.ui.main
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
+ 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ListAlt
@@ -83,17 +82,24 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                 val ctx = LocalContext.current
                 var kind by remember { mutableStateOf<String?>(null) }
                 Column(modifier = Modifier.padding(padding)) {
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(onClick = { kind = "sitrep" }, modifier = Modifier.fillMaxWidth()) { Text("SITREP") }
-                        Button(onClick = { kind = "warnord" }, modifier = Modifier.fillMaxWidth()) { Text("WARNORD") }
-                        Button(onClick = { kind = "opord" }, modifier = Modifier.fillMaxWidth()) { Text("OPORD") }
-                        Button(onClick = { kind = "frago" }, modifier = Modifier.fillMaxWidth()) { Text("FRAGO") }
-                        Button(onClick = { kind = "medevac" }, modifier = Modifier.fillMaxWidth()) { Text("MEDEVAC") }
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(onClick = { kind = "opord" }, modifier = Modifier.weight(1f)) { Text("OPORD") }
+                            Button(onClick = { kind = "warnord" }, modifier = Modifier.weight(1f)) { Text("WARNORD") }
+                            Button(onClick = { kind = "frago" }, modifier = Modifier.weight(1f)) { Text("FRAGO") }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(onClick = { kind = "sitrep" }, modifier = Modifier.weight(1f)) { Text("SITREP") }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Button(onClick = { kind = "medevac" }, modifier = Modifier.weight(1f)) { Text("MEDEVAC") }
+                        }
                     }
                     if (kind == null) {
                         Text(
