@@ -7,7 +7,7 @@
 package com.messageai.tactical.ui.main
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
@@ -83,17 +83,17 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                 val ctx = LocalContext.current
                 var kind by remember { mutableStateOf<String?>(null) }
                 Column(modifier = Modifier.padding(padding)) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .padding(16.dp)
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(onClick = { kind = "sitrep" }) { Text("SITREP") }
-                        Button(onClick = { kind = "warnord" }) { Text("WARNORD") }
-                        Button(onClick = { kind = "opord" }) { Text("OPORD") }
-                        Button(onClick = { kind = "frago" }) { Text("FRAGO") }
-                        Button(onClick = { kind = "medevac" }) { Text("MEDEVAC") }
+                        Button(onClick = { kind = "sitrep" }, modifier = Modifier.fillMaxWidth()) { Text("SITREP") }
+                        Button(onClick = { kind = "warnord" }, modifier = Modifier.fillMaxWidth()) { Text("WARNORD") }
+                        Button(onClick = { kind = "opord" }, modifier = Modifier.fillMaxWidth()) { Text("OPORD") }
+                        Button(onClick = { kind = "frago" }, modifier = Modifier.fillMaxWidth()) { Text("FRAGO") }
+                        Button(onClick = { kind = "medevac" }, modifier = Modifier.fillMaxWidth()) { Text("MEDEVAC") }
                     }
                     if (kind == null) {
                         Text(
