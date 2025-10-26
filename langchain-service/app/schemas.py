@@ -46,9 +46,17 @@ class ThreatItem(BaseModel):
     summary: str
     severity: int = 3
     confidence: float = 0.5
-    geo: Optional[Dict[str, Any]] = None
+    tags: Optional[List[str]] = []
+    # Position representation
+    # positionMode = 'absolute' uses `abs` {lat, lon}
+    # positionMode = 'offset' uses `offset` {north: meters, east: meters} relative to current user location
+    positionMode: Optional[str] = "offset"
+    abs: Optional[Dict[str, Any]] = None
+    offset: Optional[Dict[str, Any]] = None
+    geo: Optional[Dict[str, Any]] = None  # legacy compatibility
     radiusM: Optional[int] = None
     ts: Optional[str] = None
+    sourceMsgId: Optional[str] = None
 
 
 class ThreatsData(BaseModel):

@@ -119,22 +119,89 @@ def generate_template(body: AiRequestEnvelope):
 @app.post("/threats/extract")
 def threats_extract(body: AiRequestEnvelope):
     request_id = body.requestId
-    chat_id = (body.context or {}).get("chatId")
-    max_messages = int((body.payload or {}).get("maxMessages", 100))
+    ctx = body.context or {}
+    payload = body.payload or {}
+    chat_id = ctx.get("chatId")
+    max_messages = int(payload.get("maxMessages", 10))
+    current_location = (payload.get("currentLocation") or {})
+    cur_lat = current_location.get("lat")
+    cur_lon = current_location.get("lon")
+
     msgs = fs.fetch_recent_messages(chat_id, limit=max_messages)
+    # Prepare a compact JSON preview for the model
+    preview = [
+        {"id": m.get("id"), "text": (m.get("text") or "")[:500]}
+        for m in msgs if (m.get("text") or "").strip()
+    ]
+
     rag.index_messages(msgs)
-    context = rag.build_context("Extract threats with locations and severity")
+    context = rag.build_context("Extract threats with locations, tags, severity, and offsets")
     user_prompt = (
-        "Using the context below, extract threats with fields: summary, severity (1-5), "
-        "optional geo {lat, lon}, optional radiusM (int). Return JSON threats[].\n\n" + context
+        "Task: From the recent messages and context, extract ALL distinct threats.\n"
+        "Return STRICT JSON: {threats:[{id, summary, severity (1-5), confidence (0-1), tags: [string], "
+        "positionMode: 'absolute'|'offset', abs?: {lat, lon}, offset?: {north: meters, east: meters}, "
+        "radiusM?: int, sourceMsgId?: string}]}.\n"
+        "Rules:\n"
+        "- If message provides absolute coords, use positionMode='absolute' with abs {lat, lon}.\n"
+        "- If message provides relative direction/distance (e.g., '2 km north'), use positionMode='offset' with meters north/east relative to CURRENT_LOCATION.\n"
+        "- If no location provided, default to positionMode='offset' with offset {north:0, east:0}.\n"
+        "- Include concise threat tags like ['armor','small_arms','uav','ied'] when applicable.\n"
+        "- Set radiusM if indicated; otherwise omit or choose a reasonable default (e.g., 500).\n"
+        "- Choose severity by judgement (1=low..5=critical).\n"
+        "- Set sourceMsgId to the selected message id.\n\n"
+        f"CURRENT_LOCATION: {{'lat': {cur_lat}, 'lon': {cur_lon}}}\n"
+        f"RECENT_MESSAGES_JSON: {json.dumps(preview)}\n\n"
+        f"CONTEXT_SNIPPET:\n{context}"
     )
-    _ = llm.chat(
-        system_prompt="You extract threats into strict JSON fields only.",
+    raw = llm.chat(
+        system_prompt="You are a precise information extractor. Always return STRICT JSON per the contract.",
         user_prompt=user_prompt,
         model="gpt-4o-mini",
     )
-    # For now, return empty threats; client app persists when implemented
-    data = ThreatsData(threats=[]).model_dump()
+    threats: list[dict[str, Any]] = []
+    try:
+        obj = json.loads(raw or "{}")
+        th = obj.get("threats")
+        if isinstance(th, list):
+            threats = th
+    except Exception:
+        pass
+
+    # Heuristic fallback if model unavailable or returned invalid JSON
+    if not threats:
+        kw = [
+            ("armor", ["armor", "tank", "apc", "ifv"]),
+            ("small_arms", ["shots fired", "gunfire", "contact", "small arms"]),
+            ("ied", ["ied", "improvised explosive", "roadside bomb"]),
+            ("uav", ["drone", "uav"]) ,
+        ]
+        tag = None
+        src = None
+        text = None
+        for m in preview:
+            t = (m.get("text") or "").lower()
+            for tg, words in kw:
+                if any(w in t for w in words):
+                    tag = tg
+                    src = m.get("id")
+                    text = m.get("text")
+                    break
+            if tag:
+                break
+        if tag and text:
+            threats = [{
+                "id": "auto-1",
+                "summary": text[:180],
+                "severity": 3,
+                "confidence": 0.6,
+                "tags": [tag],
+                "positionMode": "offset",
+                "offset": {"north": 0, "east": 0},
+                "radiusM": 500,
+                "sourceMsgId": src,
+            }]
+
+    data = ThreatsData(threats=threats).model_dump()
     return _ok(request_id, data)
 
 

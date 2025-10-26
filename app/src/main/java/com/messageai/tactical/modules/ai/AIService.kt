@@ -20,12 +20,18 @@ class AIService(
 
     suspend fun extractGeoData(text: String): Result<Map<String, Any?>> = provider.extractGeoData(text)
 
-    suspend fun summarizeThreats(chatId: String, maxMessages: Int): Result<List<Map<String, Any?>>> {
-        // Send chatId as context so the backend can fetch and analyze recent messages itself.
+    suspend fun summarizeThreats(chatId: String, maxMessages: Int, currentLat: Double?, currentLon: Double?): Result<List<Map<String, Any?>>> {
+        // Send chatId and current device location so backend can compute relative offsets.
         return try {
+            val payload = buildMap<String, Any?> {
+                put("maxMessages", maxMessages)
+                if (currentLat != null && currentLon != null) {
+                    put("currentLocation", mapOf("lat" to currentLat, "lon" to currentLon))
+                }
+            }
             val resp = adapter.post(
                 path = "threats/extract",
-                payload = mapOf("maxMessages" to maxMessages),
+                payload = payload,
                 context = mapOf("chatId" to chatId)
             )
             val data = resp.data ?: emptyMap()

@@ -53,29 +53,56 @@ class GeoService(
      * Falls back to device location for centerpoint when AI omits geo.
      */
     @android.annotation.SuppressLint("MissingPermission")
-    suspend fun analyzeChatThreats(chatId: String, maxMessages: Int = 100): Result<Int> =
+    suspend fun analyzeChatThreats(chatId: String, maxMessages: Int = 10): Result<Int> =
         kotlinx.coroutines.withContext(Dispatchers.IO) {
             runCatching {
                 val loc = runCatching { fused.lastLocation.await() }.getOrNull()
                 val fallbackLat = loc?.latitude
                 val fallbackLon = loc?.longitude
-                val result = aiService.summarizeThreats(chatId, maxMessages)
+                val result = aiService.summarizeThreats(chatId, maxMessages, fallbackLat, fallbackLon)
                 val items: List<Map<String, Any?>> = result.getOrThrow()
                 var saved = 0
                 items.forEach { threatMap ->
                     val summary = threatMap["summary"]?.toString() ?: return@forEach
                     val severity = (threatMap["severity"] as? Number)?.toInt() ?: 3
                     val radiusM = (threatMap["radiusM"] as? Number)?.toInt() ?: DEFAULT_RADIUS_M
-                    val geo = threatMap["geo"] as? Map<*, *>
-                    val lat = (geo?.get("lat") as? Number)?.toDouble() ?: fallbackLat
-                    val lon = (geo?.get("lon") as? Number)?.toDouble() ?: fallbackLon
-                    runCatching { aiService.extractGeoData(summary) }
+                    val tags = (threatMap["tags"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+
+                    // Absolute or offset location from backend
+                    val positionMode = threatMap["positionMode"]?.toString() ?: "offset"
+                    val abs = threatMap["abs"] as? Map<*, *>
+                    val off = threatMap["offset"] as? Map<*, *>
+
+                    val latLon: Pair<Double?, Double?> = when (positionMode) {
+                        "absolute" -> {
+                            val la = (abs?.get("lat") as? Number)?.toDouble()
+                            val lo = (abs?.get("lon") as? Number)?.toDouble()
+                            la to lo
+                        }
+                        else -> {
+                            val north = (off?.get("north") as? Number)?.toDouble() ?: 0.0
+                            val east = (off?.get("east") as? Number)?.toDouble() ?: 0.0
+                            if (fallbackLat != null && fallbackLon != null) {
+                                metersOffsetToLatLonCalc(fallbackLat, fallbackLon, north, east)
+                            } else {
+                                null to null
+                            }
+                        }
+                    }
+
+                    val lat = latLon.first ?: fallbackLat
+                    val lon = latLon.second ?: fallbackLon
                     val data = hashMapOf(
                         "summary" to summary,
                         "severity" to severity,
                         "confidence" to ((threatMap["confidence"] as? Number)?.toDouble() ?: 0.75),
                         "geo" to if (lat != null && lon != null) mapOf("lat" to lat, "lon" to lon) else null,
                         "radiusM" to radiusM,
+                        "tags" to tags,
+                        "source" to mapOf(
+                            "chatId" to chatId,
+                            "messageId" to (threatMap["sourceMsgId"]?.toString() ?: "")
+                        ),
                         "ts" to Timestamp.now()
                     ).filterValues { it != null }
                     firestore.collection(THREATS_COLLECTION).add(data).await()
@@ -192,6 +219,18 @@ class GeoService(
         private const val THREATS_COLLECTION = "threats"
         private const val DEFAULT_RADIUS_M = 500 // reasonable default for now
         private const val EIGHT_HOURS_MS = 8 * 60 * 60 * 1000L
+
+        // Convert a (north,east) meters offset to absolute lat/lon
+        private fun metersOffsetToLatLonCalc(baseLat: Double, baseLon: Double, northM: Double, eastM: Double): Pair<Double, Double> {
+            val dLat = northM / 111320.0
+            val dLon = eastM / (111320.0 * cos(Math.toRadians(baseLat)))
+            return (baseLat + dLat) to (baseLon + dLon)
+        }
+
+        private fun metersOffsetToLatLon(baseLat: Double, baseLon: Double, northM: Double, eastM: Double): Double {
+            // Deprecated helper retained to avoid signature breakage if referenced elsewhere
+            return baseLat + northM / 111320.0
+        }
 
         private fun metersBetween(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
             val R = 6371000.0
