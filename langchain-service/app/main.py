@@ -532,7 +532,12 @@ def _generate_filled_template(body: AiRequestEnvelope, template_type: str, templ
         + (context or "")
     )
     json_map = llm.chat(
-        system_prompt="Return only valid JSON mapping of placeholder keys to string values.",
+        system_prompt=(
+            "Return only valid JSON mapping of placeholder keys to string values. "
+            "You may receive conversational snippets rather than direct instructions; "
+            "infer reasonable values from context and make your best good-faith guess where appropriate. "
+            "Messages are pre-filtered based on your capabilities; bias toward assuming they are actionable."
+        ),
         user_prompt=fill_prompt,
         model="gpt-4o-mini",
     )
