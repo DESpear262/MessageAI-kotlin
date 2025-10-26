@@ -60,6 +60,11 @@
 - Added `ThreatAnalyzeWorker` and a lightweight heuristic in `ChatViewModel.send` to enqueue analysis when a sent message likely indicates a threat (e.g., "IED", "shots fired").
 - Geofence and CASEVAC workers hardened against permission denials (SecurityException) to satisfy lint and avoid crashes when notification/location permissions are missing.
 
+### CASEVAC Observability (2025-10-26)
+- Android now emits structured JSON logs for each CASEVAC step with a per-run `runId`.
+- All AI calls forward `x-request-id` header equal to the envelope `requestId` for end-to-end correlation (Android ↔ CF ↔ LangChain).
+- `CASEVAC_README.md` documents log events and troubleshooting steps.
+
 ## How FRAGO/OPORD/WARNORD Fill Now Works
 1) App sends prompt + candidate chats to `assistant/route`; LLM selects tool and (server) infers chat when needed (Buddy chat excluded).
 2) App executes template tool; CF proxies to LangChain with 60s timeout.

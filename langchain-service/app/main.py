@@ -43,20 +43,45 @@ async def hmac_verification(request: Request, call_next):
     # Skip for health and docs
     if request.url.path in {"/healthz", "/docs", "/openapi.json"}:
         return await call_next(request)
+
     if not LANGCHAIN_SHARED_SECRET:
+        logger.info(json.dumps({
+            "event": "auth_skip_no_secret",
+            "path": str(request.url.path),
+            "client": request.client.host
+        }))
         return await call_next(request)
+
     sig = request.headers.get("x-sig")
     ts = request.headers.get("x-sig-ts")
-    request_id = request.headers.get("x-request-id") or "unknown"
+    request_id = request.headers.get("x-request-id") or ""
     if not sig or not ts or not request_id:
+        logger.warning(json.dumps({
+            "event": "auth_missing_headers",
+            "path": str(request.url.path),
+            "has_sig": bool(sig),
+            "has_ts": bool(ts),
+            "has_request_id": bool(request_id),
+        }))
         return JSONResponse(status_code=401, content={"error": "Missing signature headers"})
+
     try:
         sig_time = int(ts)
     except ValueError:
+        logger.warning(json.dumps({
+            "event": "auth_bad_ts",
+            "ts_raw": ts
+        }))
         return JSONResponse(status_code=401, content={"error": "Invalid signature timestamp"})
-    now = int(time.time() * 1000)
-    age_seconds = (now - sig_time) / 1000
+
+    now_ms = int(time.time() * 1000)
+    age_seconds = (now_ms - sig_time) / 1000
     if age_seconds > SIGNATURE_MAX_AGE_SECONDS:
+        logger.warning(json.dumps({
+            "event": "auth_expired",
+            "age_seconds": age_seconds,
+            "max_age_seconds": SIGNATURE_MAX_AGE_SECONDS,
+        }))
         return JSONResponse(status_code=401, content={"error": "Signature expired"})
 
     body = await request.body()
@@ -64,8 +89,25 @@ async def hmac_verification(request: Request, call_next):
     base = f"{request_id}.{ts}.{payload_hash}"
     expected = hmac.new(LANGCHAIN_SHARED_SECRET.encode(), base.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected):
-        logger.warning(json.dumps({"event": "invalid_signature", "request_id": request_id, "client": request.client.host}))
+        logger.warning(json.dumps({
+            "event": "auth_mismatch",
+            "expected_prefix": expected[:16],
+            "provided_prefix": (sig or '')[:16],
+            "rid": request_id,
+            "ts": ts,
+            "payload_hash": payload_hash,
+            "path": str(request.url.path),
+            "body_len": len(body),
+            "age_seconds": age_seconds,
+        }))
         return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+
+    logger.info(json.dumps({
+        "event": "auth_ok",
+        "rid": request_id,
+        "path": str(request.url.path),
+        "age_seconds": age_seconds
+    }))
     return await call_next(request)
 
 
@@ -123,7 +165,12 @@ def assistant_gate(body: AiRequestEnvelope):
             )
             obj = json.loads(raw or "{}")
             return bool(obj.get("escalate", True))
-        except Exception:
+        except Exception as e:
+            logger.error(json.dumps({
+                "event": "assistant_gate_vote_error",
+                "request_id": request_id,
+                "error": str(e)
+            }))
             return False  # no-op on error
 
     votes = [_one_vote(), _one_vote(), _one_vote()]
@@ -174,6 +221,7 @@ def threats_extract(body: AiRequestEnvelope):
     payload = body.payload or {}
     chat_id = ctx.get("chatId")
     max_messages = int(payload.get("maxMessages", 10))
+    trigger_id = payload.get("triggerMessageId")
     current_location = (payload.get("currentLocation") or {})
     cur_lat = current_location.get("lat")
     cur_lon = current_location.get("lon")
@@ -184,6 +232,13 @@ def threats_extract(body: AiRequestEnvelope):
         {"id": m.get("id"), "text": (m.get("text") or "")[:500]}
         for m in msgs if (m.get("text") or "").strip()
     ]
+    # Highlight the primary (trigger) message if provided
+    primary = None
+    if trigger_id:
+        for row in preview:
+            if row.get("id") == trigger_id:
+                primary = row
+                break
 
     rag.index_messages(msgs)
     context = rag.build_context("Extract threats with locations, tags, severity, and offsets")
@@ -201,8 +256,11 @@ def threats_extract(body: AiRequestEnvelope):
         "- Choose severity by judgement (1=low..5=critical).\n"
         "- Set sourceMsgId to the selected message id.\n\n"
         f"CURRENT_LOCATION: {{'lat': {cur_lat}, 'lon': {cur_lon}}}\n"
-        f"RECENT_MESSAGES_JSON: {json.dumps(preview)}\n\n"
-        f"CONTEXT_SNIPPET:\n{context}"
+        + (f"PRIMARY_MESSAGE_JSON: {json.dumps(primary)}\n\n" if primary else "")
+        + ("When selecting sourceMsgId, prefer PRIMARY_MESSAGE_JSON.id if the threat originates from that message. " if primary else "")
+        + "Only assign sourceMsgId to a message id present in RECENT_MESSAGES_JSON. If no clear source, omit sourceMsgId.\n\n"
+        + f"RECENT_MESSAGES_JSON: {json.dumps(preview)}\n\n"
+        + f"CONTEXT_SNIPPET:\n{context}"
     )
     raw = llm.chat(
         system_prompt=(

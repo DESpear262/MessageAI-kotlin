@@ -1,6 +1,7 @@
 package com.messageai.tactical.modules.ai.api
 
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
 
 // Envelope contracts (simplified). Per-endpoint Data models live in provider package.
@@ -19,34 +20,64 @@ data class AiResponseEnvelope<D>(
 
 interface LangChainApi {
     @POST("template/generate")
-    suspend fun generateTemplate(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun generateTemplate(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("template/warnord")
-    suspend fun generateWarnord(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun generateWarnord(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("template/opord")
-    suspend fun generateOpord(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun generateOpord(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("template/frago")
-    suspend fun generateFrago(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun generateFrago(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("threats/extract")
-    suspend fun extractThreats(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun extractThreats(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("sitrep/summarize")
-    suspend fun summarizeSitrep(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun summarizeSitrep(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("intent/casevac/detect")
-    suspend fun detectCasevac(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun detectCasevac(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("workflow/casevac/run")
-    suspend fun runCasevac(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun runCasevac(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("geo/extract")
-    suspend fun extractGeo(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun extractGeo(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 
     @POST("assistant/route")
-    suspend fun assistantRoute(@Body body: AiRequestEnvelope<Map<String, Any?>>): AiResponseEnvelope<Map<String, Any?>>
+    suspend fun assistantRoute(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 }
 
 

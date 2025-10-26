@@ -12,6 +12,24 @@ Autonomous multi-step medical evacuation flow coordinated by WorkManager.
 ## Triggers
 - Manual or AI intent detection
 
-## Notes
-- Resilient with retries; permission-checked location access; structured logging for observability.
+## Observability & Logging
+- All AI HTTP calls include an `x-request-id` header that matches the envelope `requestId`.
+- `CasevacWorker` emits JSON-structured Logcat lines with a stable `runId` per execution:
+  - `casevac_start` { runId, chatId, attempt }
+  - `casevac_template` { runId, chatId, latencyMs, ok }
+  - `casevac_facility` { runId, chatId, lat, lon, facility }
+  - `casevac_mission` { runId, chatId, missionId, incremented }
+  - `casevac_complete` { runId, chatId, missionId }
+  - Errors: `casevac_permission_error`, `casevac_failed`
+- Notifications are posted at start and completion (see `CasevacNotifier`).
+
+## Troubleshooting
+- If AI calls time out or fail: filter Logcat by `x-request-id` captured in backend logs (CF `requestId`).
+- If location is missing: look for `Location permission not granted` warnings; grant fine location.
+- If mission updates are missing: check Firestore rules and `MissionService` logs.
+
+## Reliability
+- WorkManager uses network constraints and exponential backoff (30s base).
+- Unique work name `casevac_<chatId>` to serialize per-chat flows.
+- Safe location access: guarded permission checks and SecurityException handling.
 

@@ -460,8 +460,10 @@ function buildEnvelope(uid: string, body: any): Envelope {
 
 function sign(envelope: Envelope): { sig: string; ts: string } {
   const ts = Date.now().toString();
-  const payloadHash = crypto.createHash('sha256').update(JSON.stringify(envelope.payload)).digest('hex');
-  const base = `${envelope.requestId}.${ts}.${payloadHash}`;
+  // IMPORTANT: Hash the EXACT body we send downstream, not just payload
+  const bodyStr = JSON.stringify(envelope);
+  const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+  const base = `${envelope.requestId}.${ts}.${bodyHash}`;
   const secret = LANGCHAIN_SHARED_SECRET.value();
   const sig = crypto.createHmac('sha256', secret).update(base).digest('hex');
   return { sig, ts };
@@ -503,6 +505,20 @@ async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: n
   try {
     const baseUrl = (process.env.LANGCHAIN_BASE_URL as string | undefined) || 'http://127.0.0.1:8000';
     const fetchFn: any = (globalThis as any).fetch;
+    // Debug log (safe prefixes only)
+    try {
+      console.log(JSON.stringify({
+        level: 'info',
+        event: 'forward_headers_debug',
+        requestId: envelope.requestId,
+        path,
+        langchainBaseUrl: baseUrl,
+        sigPrefix: (sig || '').slice(0, 12),
+        ts,
+        bodyLen: Buffer.byteLength(JSON.stringify(envelope), 'utf8')
+      }));
+    } catch {}
+    const bodyStr = JSON.stringify(envelope);
     const res = await fetchFn(`${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
       method: 'POST',
       headers: {
@@ -512,7 +528,7 @@ async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: n
         'x-sig': sig,
         'x-sig-ts': ts,
       },
-      body: JSON.stringify(envelope),
+      body: bodyStr,
       signal: controller.signal,
     });
     return res as Response;
