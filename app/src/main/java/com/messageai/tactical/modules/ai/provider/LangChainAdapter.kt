@@ -24,6 +24,7 @@ class LangChainAdapter(private val api: LangChainApi) {
             "workflow/casevac/run" -> api.runCasevac(requestId, req)
             "geo/extract" -> api.extractGeo(requestId, req)
             "assistant/route" -> api.assistantRoute(requestId, req)
+            "missions/plan" -> api.missionsPlan(requestId, req)
             else -> throw IllegalArgumentException("Unsupported path $path")
         }
     }

@@ -12,6 +12,7 @@ import com.messageai.tactical.data.remote.GeofenceWorker
 import com.messageai.tactical.data.remote.SendWorker
 import com.messageai.tactical.util.ActiveChatTracker
 import com.messageai.tactical.modules.reporting.ReportService
+import com.messageai.tactical.modules.missions.MissionService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -36,7 +37,8 @@ class AIBuddyRouter @Inject constructor(
     private val geo: GeoService,
     private val appContext: android.content.Context,
     private val activeChat: ActiveChatTracker,
-    private val reportService: ReportService
+    private val reportService: ReportService,
+    private val missionService: MissionService
 ) {
     private val prefs: SharedPreferences by lazy {
         appContext.getSharedPreferences("ai_buddy", android.content.Context.MODE_PRIVATE)
@@ -142,6 +144,54 @@ class AIBuddyRouter @Inject constructor(
                         reportService.generateSITREP(contextChat, "6h")
                             .onSuccess { postToBuddy(senderId = AI_UID, text = "SITREP ready for the current chat. Open Outputs to view.") }
                             .onFailure { postToBuddy(senderId = AI_UID, text = "SITREP generation failed: ${it.message}") }
+                    }
+                }
+                "missions/plan" -> {
+                    if (contextChat.isNullOrBlank()) {
+                        postToBuddy(senderId = AI_UID, text = "Open a chat to derive a mission plan from recent context.")
+                    } else {
+                        val result = ai.planMission(contextChat, prompt = text, candidateChats = candidates)
+                        result.onSuccess { data ->
+                            val title = (data["title"] as? String) ?: "Mission"
+                            val description = (data["description"] as? String)
+                            val priority = (data["priority"] as? Number)?.toInt() ?: 3
+                            try {
+                                val missionId = missionService.createMission(
+                                    com.messageai.tactical.modules.missions.Mission(
+                                        chatId = contextChat,
+                                        title = title,
+                                        description = description,
+                                        status = "open",
+                                        priority = priority,
+                                        assignees = emptyList(),
+                                        sourceMsgId = null
+                                    )
+                                )
+                                val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                                tasks.forEach { t ->
+                                    val taskTitle = (t["title"] as? String) ?: return@forEach
+                                    val taskDesc = t["description"] as? String
+                                    val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                    missionService.addTask(
+                                        missionId,
+                                        com.messageai.tactical.modules.missions.MissionTask(
+                                            missionId = missionId,
+                                            title = taskTitle,
+                                            description = taskDesc,
+                                            status = "open",
+                                            priority = taskPriority,
+                                            assignees = emptyList(),
+                                            sourceMsgId = null
+                                        )
+                                    )
+                                }
+                                postToBuddy(senderId = AI_UID, text = "Mission created with ${tasks.size} tasks. Open Mission Board to view.")
+                            } catch (e: Exception) {
+                                postToBuddy(senderId = AI_UID, text = "Mission planning failed to persist: ${e.message}")
+                            }
+                        }.onFailure {
+                            postToBuddy(senderId = AI_UID, text = "Mission planning failed: ${it.message}")
+                        }
                     }
                 }
                 // CASEVAC: trigger remote workflow; fall back to local worker

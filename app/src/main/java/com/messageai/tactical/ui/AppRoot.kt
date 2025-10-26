@@ -112,7 +112,8 @@ fun MessageAiAppRoot() {
                     MainTabs(
                         onLogout = { vm.logout() },
                         onOpenChat = { chatId -> navController.navigate("chat/$chatId") },
-                        onCreateChat = { navController.navigate("createChat") }
+                        onCreateChat = { navController.navigate("createChat") },
+                        onOpenMission = { missionId, chatId -> navController.navigate("mission/$missionId?chatId=$chatId") }
                     )
                 }
                 composable("createChat") {
@@ -130,6 +131,21 @@ fun MessageAiAppRoot() {
                 ) { backStackEntry ->
                     val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
                     ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
+                }
+                composable(
+                    route = "mission/{missionId}?chatId={chatId}",
+                    arguments = listOf(
+                        navArgument("missionId") { type = NavType.StringType },
+                        navArgument("chatId") { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { backStackEntry ->
+                    val missionId = backStackEntry.arguments?.getString("missionId") ?: return@composable
+                    val chatId = backStackEntry.arguments?.getString("chatId")
+                    com.messageai.tactical.ui.main.MissionTasksScreen(
+                        missionId = missionId,
+                        chatId = chatId,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
             }

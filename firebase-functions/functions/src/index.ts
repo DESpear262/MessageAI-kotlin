@@ -565,6 +565,8 @@ function routeToPath(reqPath: string): { path: string; timeoutMs: number } | nul
       return { path: 'workflow/casevac/run', timeoutMs: slow };
     case 'v1/rag/warm':
       return { path: 'rag/warm', timeoutMs: slow };
+    case 'v1/missions/plan':
+      return { path: 'missions/plan', timeoutMs: slow };
     default:
       return null;
   }

@@ -47,8 +47,9 @@
 - **Block E: Mission Tracker & Dashboard** — ✅ COMPLETE & QC APPROVED
   - MissionService with full CRUD and real-time Firestore listeners (Flow)
   - Mission & MissionTask data models with subcollection support
-  - MissionBoardScreen with Compose UI and LazyColumn
+  - MissionBoardScreen with Compose UI and LazyColumn; global missions feed added
   - MissionBoardViewModel with reactive StateFlow updates
+  - MissionTasksScreen + ViewModel to display tasks; row click navigates to tasks
   - AIService.extractTasks() for AI-based task extraction
   - CASEVAC casualty tracking integration
   - QC Grade: A- (code quality), A (architecture), B- (documentation)

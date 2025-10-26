@@ -95,3 +95,10 @@ class TasksData(BaseModel):
     tasks: List[TaskItem]
 
 
+class MissionPlanData(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[int] = None
+    tasks: List[TaskItem] = []
+
+

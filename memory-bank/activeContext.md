@@ -72,6 +72,17 @@
 ### Mission Planner Observability (2025-10-26)
 - `MissionService` now emits structured logs for mission/task create/update, archive decisions, and Flow emissions/errors.
 - `MissionBoardViewModel` logs chat selection and status updates.
+ - `MissionTasksViewModel` logs missionId selection and each tasks emission.
+ - Added raw-output logging to LangChain `/missions/plan` and tightened prompt + fence stripping to ensure strict JSON.
+
+### Missions UX & Access (2025-10-26)
+- Missions tab now uses a global feed: `MissionService.observeMissionsGlobal()` (all signed-in users can see missions for MVP).
+- Mission rows are clickable; new `MissionTasksScreen` shows the mission's tasks list.
+- Navigation: `mission/{missionId}?chatId={chatId}` route added in `AppRoot`.
+- Firestore rules (MVP) updated so any authenticated user can read/write `missions/*` and `missions/*/tasks/*`.
+- Firestore composite indexes created:
+  - `missions`: archived ASC, updatedAt DESC (global feed)
+  - (optional per-chat view) chatId ASC, archived ASC, updatedAt DESC
 
 ## Risks
 - Gate escalations rely on upstream model; triple-vote mitigates flukes but adds 2× calls (still cheap).

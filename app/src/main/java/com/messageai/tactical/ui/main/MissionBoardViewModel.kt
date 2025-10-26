@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,8 +30,31 @@ class MissionBoardViewModel @Inject constructor(
 
     val missions: StateFlow<List<Pair<String, com.messageai.tactical.modules.missions.Mission>>> =
         chatId.flatMapLatest { id ->
-            if (id.isNullOrBlank()) flowOf(emptyList()) else missionService.observeMissions(id)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+            when {
+                id == "global" -> {
+                    Log.d(TAG, json("event" to "mission_board_source", "mode" to "global"))
+                    missionService.observeMissionsGlobal()
+                }
+                id.isNullOrBlank() -> {
+                    Log.d(TAG, json("event" to "mission_board_source", "mode" to "empty"))
+                    flowOf(emptyList())
+                }
+                else -> {
+                    Log.d(TAG, json("event" to "mission_board_source", "mode" to "chat", "chatId" to id))
+                    missionService.observeMissions(id)
+                }
+            }
+        }
+        .onEach { list ->
+            try {
+                Log.d(TAG, json(
+                    "event" to "mission_board_emit",
+                    "count" to list.size,
+                    "firstId" to (list.firstOrNull()?.first ?: "")
+                ))
+            } catch (_: Exception) { }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setChatId(id: String) {
         chatId.value = id

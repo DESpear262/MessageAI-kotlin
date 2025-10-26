@@ -78,6 +78,12 @@ interface LangChainApi {
         @Header("x-request-id") requestId: String,
         @Body body: AiRequestEnvelope<Map<String, Any?>>, 
     ): AiResponseEnvelope<Map<String, Any?>>
+
+    @POST("missions/plan")
+    suspend fun missionsPlan(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
 }
 
 

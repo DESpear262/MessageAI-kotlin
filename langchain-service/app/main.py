@@ -15,10 +15,12 @@ from .schemas import (
     SitrepTemplateData,
     ThreatsData,
     TasksData,
+    TaskItem,
     IntentDetectData,
     CasevacWorkflowResponse,
     ConfidenceField,
     TemplateDocData,
+    MissionPlanData,
 )
 from .providers import OpenAIProvider
 from .firestore_client import FirestoreReader
@@ -453,6 +455,7 @@ def assistant_route(body: AiRequestEnvelope):
         "template/warnord",
         "template/opord",
         "template/frago",
+        "missions/plan",
         "threats/extract",
         "workflow/casevac/run",
         "tasks/extract",
@@ -487,6 +490,8 @@ def assistant_route(body: AiRequestEnvelope):
         "- template/opord: Use when user requests an OPORD template. Input: {}; Output: {content: markdown}.\n"
         "- template/frago: Use when user requests a FRAGO/FRAGORD/fragmentary order. Input: {}; Output: {content: markdown}.\n"
         "  Note: currently returns a template skeleton; not auto-filled.\n"
+        "- missions/plan: Use when the user asks to plan a mission or generate tasks. "
+        "Output: {title?, description?, priority?, tasks: []}.\n"
         "- threats/extract: Use when asked to extract threats into JSON. Input: {maxMessages?}; Output: {threats: []}.\n"
         "- tasks/extract: Use when asked to extract tasks into JSON. Output: {tasks: []}.\n"
         "- workflow/casevac/run: Use ONLY when the user clearly intends to initiate a CASEVAC. "
@@ -508,7 +513,10 @@ def assistant_route(body: AiRequestEnvelope):
         "Assistant JSON: {\"tool\":\"workflow/casevac/run\",\"args\":{},\"reply\":\"Starting CASEVAC workflow…\"}\n\n"
         "Example 4\n"
         "User: 'Generate an OPORD template.'\n"
-        "Assistant JSON: {\"tool\":\"template/opord\",\"args\":{},\"reply\":\"Generating OPORD template…\"}"
+        "Assistant JSON: {\"tool\":\"template/opord\",\"args\":{},\"reply\":\"Generating OPORD template…\"}\n\n"
+        "Example 5\n"
+        "User: 'Plan the mission for the Parker convoy based on the last traffic.'\n"
+        "Assistant JSON: {\"tool\":\"missions/plan\",\"args\":{},\"reply\":\"Drafting mission plan and tasks…\"}"
     )
 
     decision = llm.chat(
@@ -799,18 +807,123 @@ def tasks_extract(body: AiRequestEnvelope):
     request_id = body.requestId
     ctx = body.context or {}
     chat_id = ctx.get("chatId")
-    msgs = fs.fetch_recent_messages(chat_id, limit=120)
+
+    msgs = fs.fetch_recent_messages(chat_id, limit=200) if chat_id else []
     rag.index_messages(msgs)
-    _ = llm.chat(
+    context = rag.build_context("Extract actionable tasks (title, description, priority 1-5)")
+
+    user_prompt = (
+        "From the following operational chat context, extract ACTIONABLE tasks.\n"
+        "Return STRICT JSON: {\"tasks\": [{\"title\": string, \"description\"?: string, \"priority\"?: int (1-5)}]}.\n"
+        "Keep titles concise; include a short description only if it adds clarity.\n"
+        "If none, return {\"tasks\": []}.\n\n"
+        f"CONTEXT:\n{context}"
+    )
+
+    raw = llm.chat(
+        system_prompt="You extract concise, actionable tasks. Output strict JSON per the contract.",
+        user_prompt=user_prompt,
+        model="gpt-4o-mini",
+    )
+
+    tasks: list[dict[str, Any]] = []
+    try:
+        obj = json.loads(raw or "{}")
+        ts = obj.get("tasks")
+        if isinstance(ts, list):
+            tasks = ts
+    except Exception:
+        logger.warning(json.dumps({"event": "tasks_extract_parse_error"}))
+
+    data = TasksData(tasks=[TaskItem(**t) for t in tasks if isinstance(t, dict)]).model_dump()
+    return _ok(request_id, data)
+
+@app.post("/missions/plan")
+def missions_plan(body: AiRequestEnvelope):
+    request_id = body.requestId
+    ctx = body.context or {}
+    chat_id = ctx.get("chatId")
+    payload = body.payload or {}
+    prompt = str(payload.get("prompt", "")).strip()
+
+    msgs = fs.fetch_recent_messages(chat_id, limit=200) if chat_id else []
+    rag.index_messages(msgs)
+    context = rag.build_context("Extract mission plan summary and tasks from chat context")
+
+    plan_prompt = (
+        "You are a mission planner. Propose a short mission title and 1-2 line description, "
+        "and extract actionable tasks (title, optional description, priority 1-5).\n"
+        "Return STRICT JSON with keys: title, description, priority (1-5), tasks: [{title, description?, priority?}].\n"
+        "If priority is unknown, omit it (the client defaults to 3).\n\n"
+        f"USER_PROMPT:\n{prompt}\n\n"
+        f"CONTEXT:\n{context}"
+    )
+    raw = llm.chat(
         system_prompt=(
             "You produce short actionable tasks from chat. "
             "Conversations may be indirect; when users discuss plans or next steps, infer tasks and make your best guess. "
             "Bias toward extracting tasks when plausible given your tools."
+            "Return ONLY a valid JSON object. Do NOT include markdown, backticks, code fences, or any commentary. "
+            "Start the response with '{' and end with '}'. Keys: title (string), description (string), priority (int 1-5, optional), "
+            "tasks (array of objects with keys: title (string), description (string, optional), priority (int 1-5, optional))."
         ),
-        user_prompt="Extract tasks (title, optional description, priority 1-5) in JSON.",
+        user_prompt=plan_prompt,
         model="gpt-4o-mini",
     )
-    data = TasksData(tasks=[]).model_dump()
+
+    # Log raw model output (length + preview) to diagnose parsing issues
+    try:
+        logger.info(json.dumps({
+            "event": "missions_plan_model_raw",
+            "request_id": request_id,
+            "raw_len": len(raw or ""),
+            "raw_preview": (raw or "")[:200]
+        }))
+    except Exception:
+        pass
+
+    # Best-effort cleanup for accidental fenced output
+    try:
+        s = (raw or "").strip()
+        if s.startswith("```"):
+            # strip triple-backtick fences with optional language tag
+            s = s.lstrip('`')
+            # after lstrip, the first non-` char should be language or '{'
+            # Re-scan between the first newline and the last "```"
+            first_nl = s.find("\n")
+            if first_nl != -1:
+                candidate = s[first_nl + 1 :]
+            else:
+                candidate = s
+            end = candidate.rfind("```")
+            if end != -1:
+                raw = candidate[:end]
+    except Exception:
+        pass
+
+    title = None
+    description = None
+    priority = None
+    tasks: list[dict[str, Any]] = []
+    try:
+        obj = json.loads(raw or "{}")
+        if isinstance(obj.get("title"), str):
+            title = obj.get("title")
+        if isinstance(obj.get("description"), str):
+            description = obj.get("description")
+        p = obj.get("priority")
+        if isinstance(p, int):
+            priority = p
+        ts = obj.get("tasks")
+        if isinstance(ts, list):
+            tasks = ts
+    except Exception:
+        logger.warning(json.dumps({"event": "missions_plan_parse_error"}))
+
+    data = MissionPlanData(
+        title=title, description=description, priority=priority,
+        tasks=[TaskItem(**t) for t in tasks if isinstance(t, dict)]
+    ).model_dump()
     return _ok(request_id, data)
 
 

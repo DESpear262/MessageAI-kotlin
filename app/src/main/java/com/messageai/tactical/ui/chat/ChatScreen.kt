@@ -461,6 +461,54 @@ class ChatViewModel @Inject constructor(
                                 .onFailure { postImmediate("SITREP generation failed: ${it.message}", context, chatId) }
                         }
                     }
+                    "missions/plan" -> {
+                        if (contextChat.isNullOrBlank()) {
+                            postImmediate("Open a chat to derive a mission plan from recent context.", context, chatId)
+                        } else {
+                            val result = aiService.planMission(contextChat, prompt = text, candidateChats = candidates)
+                            result.onSuccess { data ->
+                                val title = (data["title"] as? String) ?: "Mission"
+                                val description = (data["description"] as? String)
+                                val priority = (data["priority"] as? Number)?.toInt() ?: 3
+                                try {
+                                    val missionId = missionService.createMission(
+                                        com.messageai.tactical.modules.missions.Mission(
+                                            chatId = contextChat,
+                                            title = title,
+                                            description = description,
+                                            status = "open",
+                                            priority = priority,
+                                            assignees = emptyList(),
+                                            sourceMsgId = null
+                                        )
+                                    )
+                                    val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                                    tasks.forEach { t ->
+                                        val taskTitle = (t["title"] as? String) ?: return@forEach
+                                        val taskDesc = t["description"] as? String
+                                        val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                        missionService.addTask(
+                                            missionId,
+                                            com.messageai.tactical.modules.missions.MissionTask(
+                                                missionId = missionId,
+                                                title = taskTitle,
+                                                description = taskDesc,
+                                                status = "open",
+                                                priority = taskPriority,
+                                                assignees = emptyList(),
+                                                sourceMsgId = null
+                                            )
+                                        )
+                                    }
+                                    postImmediate("Mission created with ${tasks.size} tasks. Open Mission Board to view.", context, chatId)
+                                } catch (e: Exception) {
+                                    postImmediate("Mission planning failed to persist: ${e.message}", context, chatId)
+                                }
+                            }.onFailure {
+                                postImmediate("Mission planning failed: ${it.message}", context, chatId)
+                            }
+                        }
+                    }
                     // threats/extract path is now handled proactively via assistant/gate and route; no manual execution here
                 }
             } catch (e: Exception) {

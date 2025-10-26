@@ -133,6 +133,24 @@ class AIService(
         )
         resp.data ?: emptyMap()
     }
+
+    /** Mission planning via backend tool. Returns plan envelope with tasks; client may persist. */
+    suspend fun planMission(
+        chatId: String,
+        prompt: String? = null,
+        candidateChats: List<Map<String, Any?>> = emptyList()
+    ): Result<Map<String, Any?>> = runCatching {
+        val payload = buildMap<String, Any?> {
+            if (!prompt.isNullOrBlank()) put("prompt", prompt)
+            if (candidateChats.isNotEmpty()) put("candidateChats", candidateChats)
+        }
+        val resp = adapter.post(
+            path = "missions/plan",
+            payload = payload,
+            context = mapOf("chatId" to chatId)
+        )
+        resp.data ?: emptyMap()
+    }
 }
 
 

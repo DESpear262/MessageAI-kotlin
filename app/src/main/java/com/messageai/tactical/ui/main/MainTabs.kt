@@ -29,9 +29,10 @@ import androidx.compose.ui.platform.LocalContext
  * @param onLogout Callback to sign out and return to auth screen
  * @param onOpenChat Callback to navigate to a specific chat
  * @param onCreateChat Callback to navigate to the new chat creation screen
+ * @param onOpenMission Callback to navigate to a mission (tasks list)
  */
 @Composable
-fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateChat: () -> Unit = {}) {
+fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateChat: () -> Unit = {}, onOpenMission: (missionId: String, chatId: String?) -> Unit = { _, _ -> }) {
     var tab by remember { mutableStateOf(0) }
     Scaffold(
         bottomBar = {
@@ -74,7 +75,7 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                     ChatListScreen(onOpenChat = onOpenChat, onLogout = onLogout, onCreateChat = onCreateChat)
                 }
             }
-            1 -> MissionBoardScreen(chatId = "global")
+            1 -> MissionBoardScreen(chatId = "global", onOpenMission = onOpenMission)
             2 -> com.messageai.tactical.ui.main.aibuddy.AIBuddyScreen(onBackToChats = { tab = 0 })
             3 -> {
                 val ctx = LocalContext.current

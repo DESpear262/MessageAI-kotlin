@@ -127,6 +127,7 @@ class MissionService @Inject constructor(
     }
 
     fun observeMissions(chatId: String, includeArchived: Boolean = false): Flow<List<Pair<String, Mission>>> = callbackFlow {
+        Log.d(TAG, json("event" to "missions_observe_start", "mode" to "chat", "chatId" to chatId, "includeArchived" to includeArchived))
         var query: Query = missionsCol().whereEqualTo("chatId", chatId).orderBy("updatedAt", Query.Direction.DESCENDING).limit(100)
         if (!includeArchived) query = query.whereEqualTo("archived", false)
         val reg = query.addSnapshotListener { snap, err ->
@@ -160,6 +161,49 @@ class MissionService @Inject constructor(
             Log.d(TAG, json(
                 "event" to "missions_observe_emit",
                 "chatId" to chatId,
+                "count" to (list?.size ?: 0)
+            ))
+        }
+        awaitClose { reg.remove() }
+    }
+
+    /**
+     * Observe all missions regardless of chat for MVP visibility. In a future
+     * iteration, this can be restricted by assignees/roles.
+     */
+    fun observeMissionsGlobal(includeArchived: Boolean = false): Flow<List<Pair<String, Mission>>> = callbackFlow {
+        Log.d(TAG, json("event" to "missions_observe_start", "mode" to "global", "includeArchived" to includeArchived))
+        var query: Query = missionsCol().orderBy("updatedAt", Query.Direction.DESCENDING).limit(200)
+        if (!includeArchived) query = query.whereEqualTo("archived", false)
+        val reg = query.addSnapshotListener { snap, err ->
+            if (err != null) {
+                Log.e(TAG, json(
+                    "event" to "missions_observe_global_error",
+                    "message" to (err.message ?: "unknown")
+                ))
+                return@addSnapshotListener
+            }
+            val list = snap?.documents?.map { d ->
+                val m = Mission(
+                    id = d.id,
+                    chatId = d.getString("chatId") ?: "",
+                    title = d.getString("title") ?: "",
+                    description = d.getString("description"),
+                    status = d.getString("status") ?: "open",
+                    priority = (d.get("priority") as? Number)?.toInt() ?: 3,
+                    assignees = (d.get("assignees") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    createdAt = (d.get("createdAt") as? Number)?.toLong() ?: 0L,
+                    updatedAt = (d.get("updatedAt") as? Number)?.toLong() ?: 0L,
+                    dueAt = (d.get("dueAt") as? Number)?.toLong(),
+                    tags = (d.get("tags") as? List<*>)?.filterIsInstance<String>(),
+                    archived = d.getBoolean("archived") ?: false,
+                    sourceMsgId = d.getString("sourceMsgId")
+                )
+                d.id to m
+            } ?: emptyList()
+            trySend(list)
+            Log.d(TAG, json(
+                "event" to "missions_observe_global_emit",
                 "count" to (list?.size ?: 0)
             ))
         }
