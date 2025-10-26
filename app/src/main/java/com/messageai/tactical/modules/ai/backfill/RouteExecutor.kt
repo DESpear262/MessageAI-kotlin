@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.messageai.tactical.modules.ai.AIService
+import com.messageai.tactical.modules.missions.MissionService
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -20,7 +21,8 @@ import dagger.assisted.AssistedInject
 class RouteExecutor @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val ai: AIService
+    private val ai: AIService,
+    private val missionService: MissionService
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -47,15 +49,51 @@ class RouteExecutor @AssistedInject constructor(
                     // Persist threats immediately to Firestore
                     persistThreats(chatId, threats, loc)
                 }
-                // CASEVAC: use missions/plan to let server create & persist; no local fallback
+                // CASEVAC: reuse missions/plan, then persist mission + tasks via MissionService
                 "workflow/casevac/run" -> {
                     android.util.Log.i("RouteExecutor", "casevac_plan_start chatId=${chatId ?: "null"} msgId=${inputData.getString(KEY_MESSAGE_ID) ?: ""}")
                     val injected = "[CASEVAC] Initiate CASEVAC mission and tasks. " + text
-                    val res = ai.runWorkflow("missions/plan", mapOf("prompt" to injected))
-                    if (res.isSuccess) {
-                        android.util.Log.i("RouteExecutor", "casevac_plan_ok")
-                    } else {
-                        android.util.Log.w("RouteExecutor", "casevac_plan_failed: ${res.exceptionOrNull()?.message}")
+                    val res = ai.planMission(chatId ?: return Result.failure(), prompt = injected)
+                    res.onSuccess { data ->
+                        try {
+                            val title = (data["title"] as? String) ?: "CASEVAC"
+                            val description = (data["description"] as? String)
+                            val priority = (data["priority"] as? Number)?.toInt() ?: 5
+                            val missionId = missionService.createMission(
+                                com.messageai.tactical.modules.missions.Mission(
+                                    chatId = chatId ?: "",
+                                    title = title,
+                                    description = description,
+                                    status = "in_progress",
+                                    priority = priority,
+                                    assignees = emptyList(),
+                                    sourceMsgId = inputData.getString(KEY_MESSAGE_ID)
+                                )
+                            )
+                            val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                            tasks.forEach { t ->
+                                val taskTitle = (t["title"] as? String) ?: return@forEach
+                                val taskDesc = t["description"] as? String
+                                val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                missionService.addTask(
+                                    missionId,
+                                    com.messageai.tactical.modules.missions.MissionTask(
+                                        missionId = missionId,
+                                        title = taskTitle,
+                                        description = taskDesc,
+                                        status = "open",
+                                        priority = taskPriority,
+                                        assignees = emptyList(),
+                                        sourceMsgId = inputData.getString(KEY_MESSAGE_ID)
+                                    )
+                                )
+                            }
+                            android.util.Log.i("RouteExecutor", "casevac_plan_persisted missionId=$missionId tasks=${tasks.size}")
+                        } catch (e: Exception) {
+                            android.util.Log.w("RouteExecutor", "casevac_plan_persist_failed: ${e.message}")
+                        }
+                    }.onFailure {
+                        android.util.Log.w("RouteExecutor", "casevac_plan_failed: ${it.message}")
                     }
                 }
                 // For other tools, do nothing here; existing modules will execute with their own context
