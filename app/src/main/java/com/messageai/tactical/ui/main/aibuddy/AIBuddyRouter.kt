@@ -6,7 +6,6 @@ import com.messageai.tactical.data.remote.ChatService
 import com.messageai.tactical.data.db.ChatDao
 import com.messageai.tactical.data.remote.FirestorePaths
 import com.messageai.tactical.modules.ai.AIService
-import com.messageai.tactical.modules.ai.work.CasevacWorker
 import com.messageai.tactical.modules.geo.GeoService
 import com.messageai.tactical.data.remote.GeofenceWorker
 import com.messageai.tactical.data.remote.SendWorker
@@ -194,35 +193,21 @@ class AIBuddyRouter @Inject constructor(
                         }
                     }
                 }
-                // CASEVAC: trigger remote workflow; fall back to local worker and add logs
+                // CASEVAC: use missions/plan module with CASEVAC context injection (server persists/display)
                 "workflow/casevac/run" -> {
                     if (contextChat.isNullOrBlank()) {
                         postToBuddy(senderId = AI_UID, text = "I need a chat selected to initiate CASEVAC. Open a chat and ask again.")
                     } else {
-                        Log.i("AIBuddyRouter", "casevac_remote_start chatId=$contextChat")
-                        postToBuddy(senderId = AI_UID, text = "Starting CASEVAC workflow…")
-                        ai.runCasevacRemote(contextChat, emptyMap())
-                            .onSuccess { data ->
-                                val missionId = data["missionId"]?.toString() ?: (data["result"] as? Map<*, *>)?.get("missionId")?.toString()
-                                Log.i("AIBuddyRouter", "casevac_remote_ok missionId=${missionId ?: ""}")
-                                val suffix = if (!missionId.isNullOrBlank()) " (mission: $missionId)" else ""
-                                postToBuddy(senderId = AI_UID, text = "CASEVAC initiated$suffix. Monitor Mission Board for updates.")
-                                if (missionId == null || missionId == "local") {
-                                    try {
-                                        Log.i("AIBuddyRouter", "casevac_fallback_local enqueue CasevacWorker")
-                                        CasevacWorker.enqueue(appContext, contextChat, null)
-                                    } catch (_: Exception) {}
-                                }
+                        Log.i("AIBuddyRouter", "casevac_plan_start chatId=$contextChat")
+                        val injected = "[CASEVAC] Initiate CASEVAC mission and tasks. " + text
+                        ai.planMission(contextChat, prompt = injected, candidateChats = candidates)
+                            .onSuccess {
+                                Log.i("AIBuddyRouter", "casevac_plan_ok")
+                                postToBuddy(senderId = AI_UID, text = "CASEVAC mission created. Open Mission Board to view.")
                             }
                             .onFailure {
-                                // Fallback to local worker in case remote fails
-                                try {
-                                    Log.w("AIBuddyRouter", "casevac_remote_failed; enqueue local worker: ${it.message}")
-                                    CasevacWorker.enqueue(appContext, contextChat, null)
-                                    postToBuddy(senderId = AI_UID, text = "Remote CASEVAC failed (${it.message}). Falling back to on-device workflow.")
-                                } catch (e: Exception) {
-                                    postToBuddy(senderId = AI_UID, text = "CASEVAC failed: ${e.message}")
-                                }
+                                Log.w("AIBuddyRouter", "casevac_plan_failed: ${it.message}")
+                                postToBuddy(senderId = AI_UID, text = "CASEVAC planning failed: ${it.message}")
                             }
                     }
                 }
