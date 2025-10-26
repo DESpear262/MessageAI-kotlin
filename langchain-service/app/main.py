@@ -94,33 +94,49 @@ def assistant_gate(body: AiRequestEnvelope):
     text = str(payload.get("prompt", ""))
     # Minimal tools awareness; no chat history to keep it cheap
     tools = [
-        "threats/extract",
-        "tasks/extract",
-        "sitrep/summarize",
-        "template/warnord",
-        "template/opord",
-        "template/frago",
-        "workflow/casevac/run",
+        "threats/extract for when the user mentions threats or potential threats",
+        "tasks/extract for when the user mentions tasks or potential tasks",
+        "sitrep/summarize for when the user requests a sitrep",
+        "template/warnord for when the user requests a warnord populated from the recent messages",
+        "template/opord for when the user requests an opord populated from the recent messages",
+        "template/frago for when the user requests a frago populated from the recent messages",
+        "workflow/casevac/run for when the user sends a message indicating a major medical emergency",
         "geo/extract",
     ]
     gate_prompt = (
-        "You are a cheap gate model. Decide if the following single message should be escalated "
-        "to a full assistant with these tools available: " + ", ".join(tools) + ".\n" 
+        "You are a gate model. Decide if the following single message should be escalated "
+        "to a full assistant with these tools available: " + ", ".join(tools) + ".\n"
         "Return STRICT JSON: {\"escalate\": boolean}. If uncertain, set escalate=true.\n\n"
         f"MESSAGE:\n{text}"
     )
+
+    def _one_vote() -> bool:
+        try:
+            raw = llm.chat(
+                system_prompt=(
+                    "You are a gate model. Decide whether to escalate. "
+                    "If the message mentions threats, potential threats, tasks to take, medical emergencies, or geospatial info, return {\\\"escalate\\\": true}. "
+                    "If uncertain, return {\\\"escalate\\\": true}. Return only JSON."
+                ),
+                user_prompt=gate_prompt,
+                model="gpt-4.1-nano",
+            )
+            obj = json.loads(raw or "{}")
+            return bool(obj.get("escalate", True))
+        except Exception:
+            return False  # no-op on error
+
+    votes = [_one_vote(), _one_vote(), _one_vote()]
+    escalate = votes.count(True) >= 2
     try:
-        # Use the smallest/cheapest model for gating
-        raw = llm.chat(
-            system_prompt="Return only JSON with {\"escalate\": boolean}.",
-            user_prompt=gate_prompt,
-            model="gpt-4.1-nano",
-        )
-        obj = json.loads(raw or "{}")
-        escalate = bool(obj.get("escalate", True))
+        logger.info(json.dumps({
+            "event": "assistant_gate_votes",
+            "request_id": request_id,
+            "votes": votes,
+            "escalate": escalate
+        }))
     except Exception:
-        # On error: no-op (do not escalate)
-        escalate = False
+        pass
     return _ok(request_id, {"escalate": escalate})
 
 
