@@ -128,8 +128,7 @@ class MissionService @Inject constructor(
 
     fun observeMissions(chatId: String, includeArchived: Boolean = false): Flow<List<Pair<String, Mission>>> = callbackFlow {
         Log.d(TAG, json("event" to "missions_observe_start", "mode" to "chat", "chatId" to chatId, "includeArchived" to includeArchived))
-        var query: Query = missionsCol().whereEqualTo("chatId", chatId).orderBy("updatedAt", Query.Direction.DESCENDING).limit(100)
-        if (!includeArchived) query = query.whereEqualTo("archived", false)
+        val query: Query = missionsCol().whereEqualTo("chatId", chatId).orderBy("updatedAt", Query.Direction.DESCENDING).limit(100)
         val reg = query.addSnapshotListener { snap, err ->
             if (err != null) {
                 Log.e(TAG, json(
@@ -139,7 +138,7 @@ class MissionService @Inject constructor(
                 ))
                 return@addSnapshotListener
             }
-            val list = snap?.documents?.map { d ->
+            val all = snap?.documents?.map { d ->
                 val m = Mission(
                     id = d.id,
                     chatId = d.getString("chatId") ?: "",
@@ -157,6 +156,7 @@ class MissionService @Inject constructor(
                 )
                 d.id to m
             } ?: emptyList()
+            val list = if (includeArchived) all else all.filter { !it.second.archived }
             trySend(list)
             Log.d(TAG, json(
                 "event" to "missions_observe_emit",
@@ -173,8 +173,7 @@ class MissionService @Inject constructor(
      */
     fun observeMissionsGlobal(includeArchived: Boolean = false): Flow<List<Pair<String, Mission>>> = callbackFlow {
         Log.d(TAG, json("event" to "missions_observe_start", "mode" to "global", "includeArchived" to includeArchived))
-        var query: Query = missionsCol().orderBy("updatedAt", Query.Direction.DESCENDING).limit(200)
-        if (!includeArchived) query = query.whereEqualTo("archived", false)
+        val query: Query = missionsCol().orderBy("updatedAt", Query.Direction.DESCENDING).limit(200)
         val reg = query.addSnapshotListener { snap, err ->
             if (err != null) {
                 Log.e(TAG, json(
@@ -183,7 +182,7 @@ class MissionService @Inject constructor(
                 ))
                 return@addSnapshotListener
             }
-            val list = snap?.documents?.map { d ->
+            val all = snap?.documents?.map { d ->
                 val m = Mission(
                     id = d.id,
                     chatId = d.getString("chatId") ?: "",
@@ -201,6 +200,7 @@ class MissionService @Inject constructor(
                 )
                 d.id to m
             } ?: emptyList()
+            val list = if (includeArchived) all else all.filter { !it.second.archived }
             trySend(list)
             Log.d(TAG, json(
                 "event" to "missions_observe_global_emit",
