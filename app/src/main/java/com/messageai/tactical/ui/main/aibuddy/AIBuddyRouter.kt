@@ -237,6 +237,9 @@ class AIBuddyRouter @Inject constructor(
                                     }
                                     Log.i("AIBuddyRouter", "casevac_plan_persisted missionId=$missionId tasks=${tasks.size}")
                                     postToBuddy(senderId = AI_UID, text = "CASEVAC mission created with ${tasks.size} tasks. Open Missions to view.")
+                                    // Warm MEDEVAC doc using existing template generator, so Outputs shows immediately
+                                    reportService.generateMedevac(contextChat, prompt = text, candidateChats = candidates)
+                                        .onSuccess { postToBuddy(senderId = AI_UID, text = "MEDEVAC ready. Open Outputs > MEDEVAC to preview and share.") }
                                 } catch (e: Exception) {
                                     Log.w("AIBuddyRouter", "casevac_plan_persist_failed: ${e.message}")
                                     postToBuddy(senderId = AI_UID, text = "CASEVAC mission persist failed: ${e.message}")

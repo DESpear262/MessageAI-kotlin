@@ -37,6 +37,7 @@ class ReportViewModel @Inject constructor(
                 "warnord" -> reportService.generateWarnord(chatId)
                 "opord" -> reportService.generateOpord(chatId)
                 "frago" -> reportService.generateFrago(chatId)
+                "medevac" -> reportService.generateMedevac(chatId)
                 else -> Result.failure(IllegalArgumentException("unknown template"))
             }
             result

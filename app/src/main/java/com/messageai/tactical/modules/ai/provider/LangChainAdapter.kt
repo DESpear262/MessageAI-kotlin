@@ -18,6 +18,7 @@ class LangChainAdapter(private val api: LangChainApi) {
             "template/warnord" -> api.generateWarnord(requestId, req)
             "template/opord" -> api.generateOpord(requestId, req)
             "template/frago" -> api.generateFrago(requestId, req)
+            "template/medevac" -> api.generateMedevac(requestId, req)
             "threats/extract" -> api.extractThreats(requestId, req)
             "sitrep/summarize" -> api.summarizeSitrep(requestId, req)
             "intent/casevac/detect" -> api.detectCasevac(requestId, req)

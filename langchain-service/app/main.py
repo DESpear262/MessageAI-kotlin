@@ -708,6 +708,11 @@ def frago_generate(body: AiRequestEnvelope):
     return _generate_filled_template(body, "FRAGO", "Input file templates/FRAGO.md")
 
 
+@app.post("/template/medevac")
+def medevac_generate(body: AiRequestEnvelope):
+    return _generate_filled_template(body, "MEDEVAC", "Input file templates/MEDEVAC.md")
+
+
 def _load_markdown_template(path: str) -> str:
     try:
         candidates = []

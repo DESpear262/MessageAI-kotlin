@@ -43,6 +43,12 @@ interface LangChainApi {
         @Body body: AiRequestEnvelope<Map<String, Any?>>, 
     ): AiResponseEnvelope<Map<String, Any?>>
 
+    @POST("template/medevac")
+    suspend fun generateMedevac(
+        @Header("x-request-id") requestId: String,
+        @Body body: AiRequestEnvelope<Map<String, Any?>>, 
+    ): AiResponseEnvelope<Map<String, Any?>>
+
     @POST("threats/extract")
     suspend fun extractThreats(
         @Header("x-request-id") requestId: String,

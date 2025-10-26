@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.messageai.tactical.modules.ai.AIService
 import com.messageai.tactical.modules.missions.MissionService
+import com.messageai.tactical.modules.reporting.ReportService
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -22,7 +23,8 @@ class RouteExecutor @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val ai: AIService,
-    private val missionService: MissionService
+    private val missionService: MissionService,
+    private val reportService: ReportService
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -89,6 +91,10 @@ class RouteExecutor @AssistedInject constructor(
                                 )
                             }
                             android.util.Log.i("RouteExecutor", "casevac_plan_persisted missionId=$missionId tasks=${tasks.size}")
+                            // Warm MEDEVAC doc so Outputs can display it immediately
+                            try {
+                                reportService.generateMedevac(chatId, prompt = text)
+                            } catch (_: Exception) {}
                         } catch (e: Exception) {
                             android.util.Log.w("RouteExecutor", "casevac_plan_persist_failed: ${e.message}")
                         }

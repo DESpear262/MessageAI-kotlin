@@ -86,6 +86,7 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                         Button(onClick = { kind = "warnord" }) { Text("WARNORD") }
                         Button(onClick = { kind = "opord" }) { Text("OPORD") }
                         Button(onClick = { kind = "frago" }) { Text("FRAGO") }
+                        Button(onClick = { kind = "medevac" }) { Text("MEDEVAC") }
                     }
                     if (kind == null) {
                         Text(
@@ -102,6 +103,7 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                                     "warnord" -> "warnord_preview.md"
                                     "opord" -> "opord_preview.md"
                                     "frago" -> "frago_preview.md"
+                                    "medevac" -> "medevac_preview.md"
                                     else -> "sitrep_preview.md"
                                 }
                                 ReportShare.shareMarkdown(ctx, file, md)

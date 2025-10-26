@@ -97,6 +97,24 @@ class ReportService(private val adapter: LangChainAdapter) {
         android.util.Log.i("ReportService", "generateFrago success len=${md.length}")
         md
     }
+
+    suspend fun generateMedevac(chatId: String?, prompt: String? = null, candidateChats: List<Map<String, Any?>> = emptyList()): Result<String> = runCatching {
+        android.util.Log.i("ReportService", "generateMedevac start chatId=$chatId")
+        val key = CacheKey("medevac", chatId, "")
+        cacheMutex.withLock {
+            cache[key]?.let { if (!it.isExpired()) return@runCatching it.markdown else cache.remove(key) }
+        }
+        val payload = buildMap<String, Any?> {
+            if (!prompt.isNullOrBlank()) put("prompt", prompt)
+            if (candidateChats.isNotEmpty()) put("candidateChats", candidateChats)
+        }
+        val ctx = if (!chatId.isNullOrBlank()) mapOf("chatId" to chatId) else emptyMap()
+        val res = adapter.post("template/medevac", payload, ctx)
+        val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
+        cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        android.util.Log.i("ReportService", "generateMedevac success len=${md.length}")
+        md
+    }
 }
 
 
