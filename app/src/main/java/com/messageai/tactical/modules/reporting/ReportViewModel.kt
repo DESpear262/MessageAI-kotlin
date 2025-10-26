@@ -29,13 +29,14 @@ class ReportViewModel @Inject constructor(
         }
     }
 
-    fun loadTemplate(kind: String) {
+    fun loadTemplate(kind: String, chatId: String? = null) {
+        android.util.Log.i("ReportViewModel", "loadTemplate kind=${kind} chatId=$chatId")
         _loading.value = true
         viewModelScope.launch {
             val result = when (kind.lowercase()) {
-                "warnord" -> reportService.generateWarnord()
-                "opord" -> reportService.generateOpord()
-                "frago" -> reportService.generateFrago()
+                "warnord" -> reportService.generateWarnord(chatId)
+                "opord" -> reportService.generateOpord(chatId)
+                "frago" -> reportService.generateFrago(chatId)
                 else -> Result.failure(IllegalArgumentException("unknown template"))
             }
             result

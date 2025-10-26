@@ -61,10 +61,13 @@ class AIService(
     }
 
     /** Single entry point for AI Buddy: send prompt and let server choose tools. */
-    suspend fun routeAssistant(chatId: String?, prompt: String): Result<Map<String, Any?>> = runCatching {
+    suspend fun routeAssistant(chatId: String?, prompt: String, candidateChats: List<Map<String, Any?>> = emptyList()): Result<Map<String, Any?>> = runCatching {
         val resp = adapter.post(
             path = "assistant/route",
-            payload = mapOf("prompt" to prompt),
+            payload = mapOf(
+                "prompt" to prompt,
+                "candidateChats" to candidateChats
+            ),
             context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
         )
         resp.data ?: emptyMap()

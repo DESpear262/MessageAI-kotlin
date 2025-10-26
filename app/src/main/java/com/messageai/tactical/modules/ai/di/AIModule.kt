@@ -50,6 +50,9 @@ object AIModule {
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
+            .connectTimeout(java.time.Duration.ofSeconds(15))
+            .readTimeout(java.time.Duration.ofSeconds(45))
+            .writeTimeout(java.time.Duration.ofSeconds(30))
             .build()
     }
 

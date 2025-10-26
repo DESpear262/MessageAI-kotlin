@@ -70,6 +70,7 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                 // Landing banner pointing to AI Buddy
                 Column(modifier = Modifier.padding(padding)) {
                     AssistChipRow(onOpenAIBuddy = { tab = 2 })
+                    // Retroactive embed backfill button
                     ChatListScreen(onOpenChat = onOpenChat, onLogout = onLogout, onCreateChat = onCreateChat)
                 }
             }

@@ -34,6 +34,7 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.catch
@@ -57,6 +58,7 @@ import com.messageai.tactical.util.ActiveChatTracker
 import com.messageai.tactical.modules.geo.GeoService
 import com.messageai.tactical.util.ParticipantHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.messageai.tactical.modules.reporting.ReportService
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
@@ -270,7 +272,8 @@ class ChatViewModel @Inject constructor(
     private val readReceiptUpdater: ReadReceiptUpdater,
     private val activeChat: ActiveChatTracker,
     private val missionService: com.messageai.tactical.modules.missions.MissionService,
-    private val aiService: com.messageai.tactical.modules.ai.AIService
+    private val aiService: com.messageai.tactical.modules.ai.AIService,
+    private val reportService: ReportService
 ) : androidx.lifecycle.ViewModel() {
     val myUid: String? get() = auth.currentUser?.uid
 
@@ -353,18 +356,134 @@ class ChatViewModel @Inject constructor(
             me.uid, com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID
         )
         if (chatId == buddyChatId) {
-            val decision = aiService.routeAssistant(chatId, text).getOrElse { emptyMap() }
+            val contextChat = activeChat.lastNonBuddyChatId.value
+            // Build candidate chats snapshot for routing context (id, name, last message snippet, updatedAt)
+            val buddyChatId = com.messageai.tactical.data.remote.FirestorePaths.directChatId(
+                me.uid, com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID
+            )
+            val chats = repo.db.chatDao().getChats().first()
+            val candidates = chats.filter { it.id != buddyChatId && (it.name ?: "").lowercase() != "ai buddy" }
+                .map { ce ->
+                mapOf(
+                    "id" to ce.id,
+                    "name" to (ce.name ?: ""),
+                    "updatedAt" to ce.updatedAt,
+                    "lastMessage" to (ce.lastMessage ?: "")
+                )
+            }
+            android.util.Log.i(
+                "ChatScreen",
+                "Buddy routeAssistant start buddyChatId=$chatId contextChat=$contextChat promptLen=${text.length} candidates=${candidates.size}"
+            )
+            // Log a fresh Firebase ID token for manual testing of aiRouter
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(false)
+                ?.addOnSuccessListener { android.util.Log.i("ID_TOKEN", it.token ?: "") }
+            // Always hit the router with prompt + candidates
+            val decision = aiService.routeAssistant(contextChat, text, candidateChats = candidates).getOrElse { emptyMap() }
             val raw = decision["decision"]?.toString() ?: "{\"tool\":\"none\",\"args\":{},\"reply\":\"I didn't understand.\"}"
+            android.util.Log.d("ChatScreen", "Buddy routeAssistant decisionRaw=$raw")
+            val (humanReadable, selectedTool) = try {
+                val obj = org.json.JSONObject(raw)
+                val reply = obj.optString("reply", "")
+                val tool = obj.optString("tool", "none")
+                android.util.Log.d("ChatScreen", "Buddy routeAssistant parsed tool=$tool hasReply=${reply.isNotBlank()}")
+                val textForUser = if (reply.isNotBlank()) reply else {
+                    when (tool) {
+                        "none" -> "I couldn't map that to a tool. Tell me which chat or be more specific."
+                        else -> "Selected $tool. Proceeding."
+                    }
+                }
+                textForUser to tool
+            } catch (_: Exception) {
+                android.util.Log.w("ChatScreen", "Buddy routeAssistant decision parse error")
+                "I'm processing that request." to "none"
+            }
             val aiMsgId = UUID.randomUUID().toString()
+            // Persist AI reply locally for offline-first before enqueuing
+            val aiEntity = com.messageai.tactical.data.db.MessageEntity(
+                id = aiMsgId,
+                chatId = chatId,
+                senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+                text = humanReadable,
+                imageUrl = null,
+                timestamp = System.currentTimeMillis(),
+                status = "SENDING",
+                readBy = "[]",
+                deliveredBy = "[]",
+                synced = false,
+                createdAt = System.currentTimeMillis()
+            )
+            repo.db.messageDao().upsert(aiEntity)
             com.messageai.tactical.data.remote.SendWorker.enqueue(
                 context = context,
                 messageId = aiMsgId,
                 chatId = chatId,
                 senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
-                text = raw,
+                text = humanReadable,
                 clientTs = System.currentTimeMillis()
             )
+
+            // Execute the selected tool (generate and warm cache), then notify user.
+            try {
+                when (selectedTool) {
+                    "template/warnord" -> reportService.generateWarnord(
+                        chatId = contextChat,
+                        prompt = text,
+                        candidateChats = candidates
+                    ).onSuccess { postImmediate("WARNORD ready. Open Outputs > WARNORD to preview and share.", context, chatId) }
+                        .onFailure { postImmediate("WARNORD generation failed: ${it.message}", context, chatId) }
+                    "template/opord" -> reportService.generateOpord(
+                        chatId = contextChat,
+                        prompt = text,
+                        candidateChats = candidates
+                    ).onSuccess { postImmediate("OPORD ready. Open Outputs > OPORD to preview and share.", context, chatId) }
+                        .onFailure { postImmediate("OPORD generation failed: ${it.message}", context, chatId) }
+                    "template/frago" -> reportService.generateFrago(
+                        chatId = contextChat,
+                        prompt = text,
+                        candidateChats = candidates
+                    ).onSuccess { postImmediate("FRAGO ready. Open Outputs > FRAGO to preview and share.", context, chatId) }
+                        .onFailure { postImmediate("FRAGO generation failed: ${it.message}", context, chatId) }
+                    "sitrep/summarize" -> {
+                        if (contextChat.isNullOrBlank()) {
+                            postImmediate("I need a chat selected to generate a SITREP. Open a chat and ask again.", context, chatId)
+                        } else {
+                            reportService.generateSITREP(contextChat, "6h")
+                                .onSuccess { postImmediate("SITREP ready for the current chat. Open Outputs to view.", context, chatId) }
+                                .onFailure { postImmediate("SITREP generation failed: ${it.message}", context, chatId) }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ChatScreen", "tool execution error: ${e.message}")
+            }
         }
+    }
+
+    private suspend fun postImmediate(text: String, context: Context, chatId: String) {
+        val id = java.util.UUID.randomUUID().toString()
+        val entity = com.messageai.tactical.data.db.MessageEntity(
+            id = id,
+            chatId = chatId,
+            senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+            text = text,
+            imageUrl = null,
+            timestamp = System.currentTimeMillis(),
+            status = "SENDING",
+            readBy = "[]",
+            deliveredBy = "[]",
+            synced = false,
+            createdAt = System.currentTimeMillis()
+        )
+        repo.db.messageDao().upsert(entity)
+        com.messageai.tactical.data.remote.SendWorker.enqueue(
+            context,
+            id,
+            chatId,
+            com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+            text,
+            entity.timestamp
+        )
     }
 
     suspend fun sendImage(chatId: String, uri: Uri, context: android.content.Context) {

@@ -44,36 +44,57 @@ class ReportService(private val adapter: LangChainAdapter) {
         md
     }
 
-    suspend fun generateWarnord(): Result<String> = runCatching {
-        val key = CacheKey("warnord", null, "")
+    suspend fun generateWarnord(chatId: String?, prompt: String? = null, candidateChats: List<Map<String, Any?>> = emptyList()): Result<String> = runCatching {
+        android.util.Log.i("ReportService", "generateWarnord start chatId=$chatId")
+        val key = CacheKey("warnord", chatId, "")
         cacheMutex.withLock {
             cache[key]?.let { if (!it.isExpired()) return@runCatching it.markdown else cache.remove(key) }
         }
-        val res = adapter.post("template/warnord", emptyMap(), emptyMap())
+        val payload = buildMap<String, Any?> {
+            if (!prompt.isNullOrBlank()) put("prompt", prompt)
+            if (candidateChats.isNotEmpty()) put("candidateChats", candidateChats)
+        }
+        val ctx = if (!chatId.isNullOrBlank()) mapOf("chatId" to chatId) else emptyMap()
+        val res = adapter.post("template/warnord", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        android.util.Log.i("ReportService", "generateWarnord success len=${md.length}")
         md
     }
 
-    suspend fun generateOpord(): Result<String> = runCatching {
-        val key = CacheKey("opord", null, "")
+    suspend fun generateOpord(chatId: String?, prompt: String? = null, candidateChats: List<Map<String, Any?>> = emptyList()): Result<String> = runCatching {
+        android.util.Log.i("ReportService", "generateOpord start chatId=$chatId")
+        val key = CacheKey("opord", chatId, "")
         cacheMutex.withLock {
             cache[key]?.let { if (!it.isExpired()) return@runCatching it.markdown else cache.remove(key) }
         }
-        val res = adapter.post("template/opord", emptyMap(), emptyMap())
+        val payload = buildMap<String, Any?> {
+            if (!prompt.isNullOrBlank()) put("prompt", prompt)
+            if (candidateChats.isNotEmpty()) put("candidateChats", candidateChats)
+        }
+        val ctx = if (!chatId.isNullOrBlank()) mapOf("chatId" to chatId) else emptyMap()
+        val res = adapter.post("template/opord", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        android.util.Log.i("ReportService", "generateOpord success len=${md.length}")
         md
     }
 
-    suspend fun generateFrago(): Result<String> = runCatching {
-        val key = CacheKey("frago", null, "")
+    suspend fun generateFrago(chatId: String?, prompt: String? = null, candidateChats: List<Map<String, Any?>> = emptyList()): Result<String> = runCatching {
+        android.util.Log.i("ReportService", "generateFrago start chatId=$chatId")
+        val key = CacheKey("frago", chatId, "")
         cacheMutex.withLock {
             cache[key]?.let { if (!it.isExpired()) return@runCatching it.markdown else cache.remove(key) }
         }
-        val res = adapter.post("template/frago", emptyMap(), emptyMap())
+        val payload = buildMap<String, Any?> {
+            if (!prompt.isNullOrBlank()) put("prompt", prompt)
+            if (candidateChats.isNotEmpty()) put("candidateChats", candidateChats)
+        }
+        val ctx = if (!chatId.isNullOrBlank()) mapOf("chatId" to chatId) else emptyMap()
+        val res = adapter.post("template/frago", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        android.util.Log.i("ReportService", "generateFrago success len=${md.length}")
         md
     }
 }

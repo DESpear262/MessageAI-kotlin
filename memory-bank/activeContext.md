@@ -42,6 +42,21 @@
   - `aiRouterSimple?path=...` (development/testing)
   - `openaiProxy` (legacy support)
 
+## Ongoing Enhancements (post-QC)
+- RAG Embedding Pipeline (DEV complete):
+  - Cloud Functions Firestore trigger embeds new messages on write, chunks at ~700 chars, and stores vectors at `chats/{chatId}/messages/{messageId}/chunks/{seq}`.
+  - LangChain service prefers precomputed chunk vectors for RAG; only embeds the query at fill time.
+  - Added `/rag/warm` endpoint to backfill embeddings for existing chats; Android helper `RagBackfill.run(context)` exists but is intentionally isolated (no UI entry).
+  - AI Buddy excludes the control chat from candidate lists; server also filters control-chat names before LLM selection.
+- Timeouts and stability:
+  - Cloud Function `aiRouter` timeouts increased (DEV): fast=20s, slow=60s; template endpoints use slow.
+  - Android OkHttp timeouts increased (connect=15s, read=45s, write=30s) to avoid client-side read timeouts during LLM fills.
+
+## How FRAGO/OPORD/WARNORD Fill Now Works
+1) App sends prompt + candidate chats to `assistant/route`; LLM selects tool and (server) infers chat when needed (Buddy chat excluded).
+2) App executes template tool; CF proxies to LangChain with 60s timeout.
+3) LangChain loads template and builds RAG context using precomputed chunk embeddings; performs only a query embed; fills placeholders via LLM; returns markdown.
+
 ## Next Steps
 - Deploy LangChain service to Cloud Run/GKE (private network)
 - Configure production environment variables:

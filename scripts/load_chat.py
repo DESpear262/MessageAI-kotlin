@@ -54,6 +54,10 @@ from typing import Any, Dict, List, Tuple, Optional
 
 from google.cloud import firestore  # type: ignore
 
+# Optional: embedding backfill for imported messages using OpenAI
+import os
+import requests
+
 
 USERS_COL = "users"
 CHATS_COL = "chats"
@@ -148,6 +152,7 @@ def build_message_doc(chat_id: str, sender_id: str, text: str) -> Dict[str, Any]
         "senderId": sender_id,
         "text": text,
         "clientTimestamp": now_ms,
+        "createdAt": now_ms,  # explicit numeric createdAt for compatibility
         "status": "SENT",  # mirrors SendWorker behavior for non-image messages
         "readBy": [],
         "deliveredBy": [],
@@ -202,6 +207,32 @@ def append_messages(db: firestore.Client, chat_id: str, sender_map: Dict[str, st
             },
             "updatedAt": firestore.SERVER_TIMESTAMP,
         })
+
+    # Backfill embeddings for imported messages (chunk + embed + write)
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if openai_key:
+        print("Backfilling embeddings for imported messages...")
+        for _, data in ops:
+            msg_id = data["id"]
+            text = (data.get("text") or "").strip()
+            if not text:
+                continue
+            chunks = [text[i : i + 700] for i in range(0, len(text), 700)]
+            for idx, ch in enumerate(chunks):
+                try:
+                    r = requests.post(
+                        "https://api.openai.com/v1/embeddings",
+                        headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                        json={"model": "text-embedding-3-small", "input": ch},
+                        timeout=30,
+                    )
+                    r.raise_for_status()
+                    vec = r.json().get("data", [{}])[0].get("embedding", [])
+                except Exception as e:
+                    print(f"Embedding error for message {msg_id}: {e}")
+                    vec = []
+                ref = db.collection(CHATS_COL).document(chat_id).collection(MESSAGES_COL).document(msg_id).collection("chunks").document(str(idx))
+                ref.set({"seq": idx, "text": ch, "len": len(ch), "embed": vec}, merge=True)
 
 
 def _load_single_chat(

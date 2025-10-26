@@ -27,6 +27,13 @@
   - `aiRouterSimple?path=...` for local testing.
   - Defaults to local `http://127.0.0.1:8000` when `LANGCHAIN_BASE_URL` is not set.
   - New endpoints: `geo/extract` (geo parsing), upgraded `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`, and `assistant/route`.
+  - DEV timeouts: fast=20s, slow=60s; template endpoints use slow to accommodate LLM fill.
+
+## RAG Pattern (current)
+- Embeddings computed on write via Cloud Function trigger (chunk ~700 chars) and stored under `chats/{chatId}/messages/{messageId}/chunks/{seq}`.
+- LangChain uses precomputed chunk vectors at fill time; only the query is embedded.
+- `/rag/warm` endpoint can backfill existing chats; Android `RagBackfill.run(context)` helper exists but is not surfaced in UI.
+- Candidate chat selection avoids control/Buddy chat on both client and server filters.
 
 ## Media Pipeline Patterns
 - Deterministic storage paths: `chat-media/{chatId}/{messageId}.jpg` using deterministic chat IDs and UUID message IDs.

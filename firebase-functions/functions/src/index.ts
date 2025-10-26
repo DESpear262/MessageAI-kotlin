@@ -6,7 +6,7 @@
  */
 import * as admin from 'firebase-admin';
 // import { user, UserRecord } from 'firebase-functions/v1/auth';
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineSecret, defineSecret as defineSecretCF, defineString } from 'firebase-functions/params';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import crypto from 'node:crypto';
@@ -94,6 +94,60 @@ export const sendPushNotification = onDocumentCreated(
     }
   }
 );
+
+// --- Embedding on write -------------------------------------------------------
+const OPENAI_API_KEY_EMBED = defineSecretCF('OPENAI_API_KEY');
+
+async function embedText(text: string): Promise<number[]> {
+  const fetchFn: any = (globalThis as any).fetch;
+  const res = await fetchFn('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY_EMBED.value()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input: text,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  const vec: number[] = data?.data?.[0]?.embedding || [];
+  return vec;
+}
+
+function chunkText(text: string, maxLen = 700): string[] {
+  const chunks: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    chunks.push(text.slice(i, i + maxLen));
+    i += maxLen;
+  }
+  return chunks;
+}
+
+export const embedOnMessageWrite = onDocumentCreated({ document: 'chats/{chatId}/messages/{messageId}', secrets: [OPENAI_API_KEY_EMBED] }, async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+  const msg = snap.data() as any;
+  const chatId = event.params.chatId as string;
+  const messageId = event.params.messageId as string;
+  const text: string = (msg?.text || '').toString().trim();
+  if (!text) { return; }
+
+  const db = admin.firestore();
+  const chunks = chunkText(text, 700);
+  const batch = db.batch();
+  let seq = 0;
+  for (const ch of chunks) {
+    const vec = await embedText(ch);
+    const ref = db.collection('chats').doc(chatId).collection('messages').doc(messageId).collection('chunks').doc(String(seq));
+    batch.set(ref, { seq, text: ch, len: ch.length, embed: vec }, { merge: true });
+    seq += 1;
+  }
+  await batch.commit();
+});
 
 /** Send push notification on new group message. */
 export const sendGroupPushNotification = onDocumentCreated(
@@ -469,17 +523,20 @@ async function forwardToLangChain(path: string, envelope: Envelope, timeoutMs: n
 
 function routeToPath(reqPath: string): { path: string; timeoutMs: number } | null {
   const p = reqPath.replace(/^\//, '');
-  const fast = 10000; // 10s
-  const slow = 30000; // 30s
+  // Bump timeouts to allow LLM fills to complete under emulator/DEV
+  const fast = 20000; // 20s
+  const slow = 60000; // 60s
   switch (p) {
     case 'v1/template/generate':
       return { path: 'template/generate', timeoutMs: fast };
     case 'v1/template/warnord':
-      return { path: 'template/warnord', timeoutMs: fast };
+      return { path: 'template/warnord', timeoutMs: slow };
     case 'v1/template/opord':
-      return { path: 'template/opord', timeoutMs: fast };
+      return { path: 'template/opord', timeoutMs: slow };
     case 'v1/template/frago':
-      return { path: 'template/frago', timeoutMs: fast };
+      return { path: 'template/frago', timeoutMs: slow };
+    case 'v1/assistant/route':
+      return { path: 'assistant/route', timeoutMs: fast };
     case 'v1/threats/extract':
       return { path: 'threats/extract', timeoutMs: fast };
     case 'v1/sitrep/summarize':
@@ -488,6 +545,8 @@ function routeToPath(reqPath: string): { path: string; timeoutMs: number } | nul
       return { path: 'intent/casevac/detect', timeoutMs: fast };
     case 'v1/workflow/casevac/run':
       return { path: 'workflow/casevac/run', timeoutMs: slow };
+    case 'v1/rag/warm':
+      return { path: 'rag/warm', timeoutMs: slow };
     default:
       return null;
   }
@@ -524,11 +583,22 @@ export const aiRouter = onRequest({ cors: true, secrets: [LANGCHAIN_SHARED_SECRE
     console.error(JSON.stringify({ level: 'error', event: 'ratelimit_error', error: (err as any)?.message }));
   }
 
-  // Route
-  const route = routeToPath((req.path || '').replace(/^\/+aiRouter\/?/, '')); // normalize if provider includes function name
-  const fallbackRoute = route || routeToPath((req.path || '').replace(/^\//, ''));
-  const target = fallbackRoute;
+  // Route (robust normalization). Extract segment after "/aiRouter/" regardless of leading project/function prefixes.
+  const rawPath = (req.path || '');
+  const url = (req as any).originalUrl || (req as any).url || rawPath;
+  let extracted = '';
+  const m = url.match(/\/aiRouter\/(.*)$/);
+  if (m && m[1]) {
+    extracted = m[1];
+  } else if (typeof req.query?.path === 'string') {
+    extracted = req.query.path as string; // support aiRouterSimple-style
+  } else {
+    extracted = url.replace(/^.*\/aiRouter\/?/, '');
+  }
+  console.log(JSON.stringify({ level: 'info', event: 'route_debug', rawPath, url, extracted }));
+  const target = routeToPath(extracted);
   if (!target) { res.status(404).json({ error: 'Unknown endpoint' }); return; }
+  console.log(JSON.stringify({ level: 'info', event: 'route_target', target: target.path, timeoutMs: target.timeoutMs }));
 
   // Body and size cap (~64KB)
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});

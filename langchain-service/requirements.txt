@@ -5,3 +5,7 @@ openai==1.51.2
 pydantic==2.9.2
 python-dotenv==1.0.1
 
+# Ensure compatibility with OpenAI SDK (uses httpx proxies kwarg pre-1.0)
+httpx<1.0.0
+httpcore<1.0.0
+

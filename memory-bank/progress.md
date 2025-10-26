@@ -83,6 +83,7 @@
   - Block B2: FastAPI LangChain service with 6+ AI endpoints, RAG, Firestore integration, OpenAI, Docker containerization
     - New/Upgraded endpoints: `assistant/route` (LLM tool router), `geo/extract`, `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`
   - End-to-end data contracts verified; Postman collection ready
+  - Post-QC: RAG moved to precomputed chunk embeddings; CF timeouts adjusted; Buddy chat excluded from LLM chat selection candidates
 - **Core Chat:** Text send pipeline; image pipeline; UI image rendering; WorkManager + Hilt integration; presence dots via RTDB.
 - **Test Suite:** 71/72 tests passing (98% success rate); Block A tests 100% (32/32).
 
