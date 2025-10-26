@@ -49,7 +49,7 @@
 ## Testing Patterns
 - Dual device/emulator tests for realtime; offline/online transitions; crash/force-quit resilience; burst traffic; group receipts; image pipeline; persistence.
 - Notifications: Verify foreground banner shows and navigates; background notification taps open the correct chat.
- - Observability: Android emits JSON-structured logs for long-running flows (e.g., CASEVAC) with a `runId` and stable keys per step; backend logs include `requestId` and endpoint for AI calls.
+ - Observability: Android emits JSON-structured logs for long-running flows (e.g., CASEVAC) with a `runId` and stable keys per step; mission planner emits logs for CRUD and Flow emissions; backend logs include `requestId` and endpoint for AI calls.
 
 ## Post-MVP Hooks
 - Transport interface for mesh; Encryption provider for Signal; AI module; tactical features (geo, self-destruct, NATO templates).

@@ -69,6 +69,10 @@
 - Add stored `rationale` for auditability of threat decisions.
 - Tighten unit tests for gate, route, and single-message tool contracts.
 
+### Mission Planner Observability (2025-10-26)
+- `MissionService` now emits structured logs for mission/task create/update, archive decisions, and Flow emissions/errors.
+- `MissionBoardViewModel` logs chat selection and status updates.
+
 ## Risks
 - Gate escalations rely on upstream model; triple-vote mitigates flukes but adds 2× calls (still cheap).
 - Location permissions may be missing; persistence uses fallback rules and guards.

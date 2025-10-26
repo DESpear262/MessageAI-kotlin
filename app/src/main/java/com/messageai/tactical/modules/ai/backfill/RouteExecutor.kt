@@ -73,12 +73,27 @@ class RouteExecutor @AssistedInject constructor(
     }
 }
 
-private fun RouteExecutor.getLastKnownLocationSafe(): Pair<Double, Double>? = try {
-    val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(applicationContext)
-    val task = fused.lastLocation
-    val loc = com.google.android.gms.tasks.Tasks.await(task)
-    if (loc != null) (loc.latitude to loc.longitude) else null
-} catch (_: Exception) { null }
+private fun RouteExecutor.getLastKnownLocationSafe(): Pair<Double, Double>? {
+    return try {
+        val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(applicationContext)
+        val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(
+            applicationContext,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(
+            applicationContext,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!hasFine && !hasCoarse) return null
+        val task = fused.lastLocation
+        val loc = com.google.android.gms.tasks.Tasks.await(task)
+        if (loc != null) (loc.latitude to loc.longitude) else null
+    } catch (_: SecurityException) {
+        null
+    } catch (_: Exception) {
+        null
+    }
+}
 
 private fun RouteExecutor.persistThreats(
     chatId: String?,

@@ -1,5 +1,6 @@
 package com.messageai.tactical.modules.missions
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -9,6 +10,13 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Mission planner service for CRUD operations and realtime observation.
+ *
+ * Observability:
+ * - Emits JSON-structured logs for key operations with a stable `event` name and parameters.
+ * - Use these to correlate UI issues (e.g., missing updates) with Firestore state transitions.
+ */
 @Singleton
 class MissionService @Inject constructor(
     private val db: FirebaseFirestore
@@ -35,6 +43,14 @@ class MissionService @Inject constructor(
             "casevacCasualties" to m.casevacCasualties
         ).filterValues { it != null }
         ref.set(data).await()
+        Log.i(TAG, json(
+            "event" to "mission_create",
+            "missionId" to ref.id,
+            "chatId" to m.chatId,
+            "title" to m.title,
+            "status" to m.status,
+            "priority" to m.priority
+        ))
         return ref.id
     }
 
@@ -53,11 +69,24 @@ class MissionService @Inject constructor(
             "sourceMsgId" to t.sourceMsgId
         ).filterValues { it != null }
         ref.set(data).await()
+        Log.i(TAG, json(
+            "event" to "mission_task_add",
+            "missionId" to missionId,
+            "taskId" to ref.id,
+            "title" to t.title,
+            "status" to t.status,
+            "priority" to t.priority
+        ))
         return ref.id
     }
 
     suspend fun updateMission(missionId: String, fields: Map<String, Any?>) {
         missionsCol().document(missionId).update(fields.filterValues { it != null }).await()
+        Log.d(TAG, json(
+            "event" to "mission_update",
+            "missionId" to missionId,
+            "fields" to fields.keys.joinToString(",")
+        ))
     }
 
     suspend fun incrementCasevacCasualties(chatId: String, delta: Int = 1) {
@@ -69,7 +98,14 @@ class MissionService @Inject constructor(
             .orderBy("updatedAt", Query.Direction.DESCENDING)
             .limit(1)
             .get().await()
-        val doc = snap.documents.firstOrNull() ?: return
+        val doc = snap.documents.firstOrNull() ?: run {
+            Log.w(TAG, json(
+                "event" to "mission_casevac_increment_skipped",
+                "chatId" to chatId,
+                "reason" to "no_open_casevac"
+            ))
+            return
+        }
         val current = (doc.get("casevacCasualties") as? Number)?.toInt() ?: 0
         missionsCol().document(doc.id).update(
             mapOf(
@@ -77,6 +113,13 @@ class MissionService @Inject constructor(
                 "updatedAt" to System.currentTimeMillis()
             )
         ).await()
+        Log.i(TAG, json(
+            "event" to "mission_casevac_increment",
+            "missionId" to doc.id,
+            "chatId" to chatId,
+            "delta" to delta,
+            "newCount" to (current + delta)
+        ))
     }
 
     suspend fun updateTask(missionId: String, taskId: String, fields: Map<String, Any?>) {
@@ -86,7 +129,15 @@ class MissionService @Inject constructor(
     fun observeMissions(chatId: String, includeArchived: Boolean = false): Flow<List<Pair<String, Mission>>> = callbackFlow {
         var query: Query = missionsCol().whereEqualTo("chatId", chatId).orderBy("updatedAt", Query.Direction.DESCENDING).limit(100)
         if (!includeArchived) query = query.whereEqualTo("archived", false)
-        val reg = query.addSnapshotListener { snap, _ ->
+        val reg = query.addSnapshotListener { snap, err ->
+            if (err != null) {
+                Log.e(TAG, json(
+                    "event" to "missions_observe_error",
+                    "chatId" to chatId,
+                    "message" to (err.message ?: "unknown")
+                ))
+                return@addSnapshotListener
+            }
             val list = snap?.documents?.map { d ->
                 val m = Mission(
                     id = d.id,
@@ -106,12 +157,25 @@ class MissionService @Inject constructor(
                 d.id to m
             } ?: emptyList()
             trySend(list)
+            Log.d(TAG, json(
+                "event" to "missions_observe_emit",
+                "chatId" to chatId,
+                "count" to (list?.size ?: 0)
+            ))
         }
         awaitClose { reg.remove() }
     }
 
     fun observeTasks(missionId: String): Flow<List<Pair<String, MissionTask>>> = callbackFlow {
-        val reg = tasksCol(missionId).orderBy("updatedAt", Query.Direction.DESCENDING).limit(200).addSnapshotListener { snap, _ ->
+        val reg = tasksCol(missionId).orderBy("updatedAt", Query.Direction.DESCENDING).limit(200).addSnapshotListener { snap, err ->
+            if (err != null) {
+                Log.e(TAG, json(
+                    "event" to "tasks_observe_error",
+                    "missionId" to missionId,
+                    "message" to (err.message ?: "unknown")
+                ))
+                return@addSnapshotListener
+            }
             val list = snap?.documents?.map { d ->
                 val t = MissionTask(
                     id = d.id,
@@ -129,6 +193,11 @@ class MissionService @Inject constructor(
                 d.id to t
             } ?: emptyList()
             trySend(list)
+            Log.d(TAG, json(
+                "event" to "tasks_observe_emit",
+                "missionId" to missionId,
+                "count" to (list?.size ?: 0)
+            ))
         }
         awaitClose { reg.remove() }
     }
@@ -138,12 +207,36 @@ class MissionService @Inject constructor(
         val allDone = tasks.documents.all { (it.getString("status") ?: "open") == "done" }
         if (allDone) {
             missionsCol().document(missionId).update(mapOf("archived" to true, "updatedAt" to System.currentTimeMillis())).await()
+            Log.i(TAG, json(
+                "event" to "mission_archive",
+                "missionId" to missionId
+            ))
         }
     }
 
     companion object {
+        private const val TAG = "MissionService"
         private const val COL_MISSIONS = "missions"
         private const val COL_TASKS = "tasks"
+    }
+
+    private fun json(vararg pairs: Pair<String, Any?>): String {
+        return buildString {
+            append('{')
+            pairs.forEachIndexed { index, (k, v) ->
+                if (index > 0) append(',')
+                append('"').append(k).append('"').append(':')
+                when (v) {
+                    null -> append("null")
+                    is Number, is Boolean -> append(v.toString())
+                    else -> {
+                        val s = v.toString().replace("\\", "\\\\").replace("\"", "\\\"")
+                        append('"').append(s).append('"')
+                    }
+                }
+            }
+            append('}')
+        }
     }
 }
 
