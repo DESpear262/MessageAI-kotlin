@@ -26,7 +26,7 @@ fun ReportPreviewScreen(
     LaunchedEffect(kind, chatId) {
         when (kind.lowercase()) {
             "sitrep" -> viewModel.loadSitrep(chatId ?: "", "6h")
-            "warnord", "opord", "frago" -> viewModel.loadTemplate(kind, chatId)
+            "warnord", "opord", "frago", "medevac" -> viewModel.loadTemplate(kind, chatId)
         }
     }
 
