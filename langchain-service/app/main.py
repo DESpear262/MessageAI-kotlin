@@ -205,11 +205,16 @@ def threats_extract(body: AiRequestEnvelope):
         f"CONTEXT_SNIPPET:\n{context}"
     )
     raw = llm.chat(
-        system_prompt="You are a precise information extractor. Always return STRICT JSON per the contract. Many of the messages you recieve will not be direct instructions. Rather, they will be natural conversations on topics which nonetheless require action from you." +         "\n\n" + 
-        "RULES:\n" + "- If the message is a direct instruction, extract the information requested.\n" + 
-        "- If the message is a natural conversation, think carefully about whether it is actionable for you and take any actions that are appropriate.\n" + 
-        "- If the message is not clear, make your best guess about what the user might want given your tools and abilities.\n" + 
-        "- Messages are pre-filtered based on your capabilities before they reach you, so have a strong bias in favor of assuming any messages that reach you are actionable given your tools, and make your best effort on that basis." 
+        system_prompt=(
+            "You are a precise information extractor. Always return STRICT JSON per the contract. "
+            "Many of the messages you receive will not be direct instructions. Rather, they will be natural conversations "
+            "on topics which nonetheless require action from you.\n\n"
+            "RULES:\n"
+            "- If the message is a direct instruction, extract the information requested.\n"
+            "- If the message is a natural conversation, think carefully about whether it is actionable for you and take any actions that are appropriate.\n"
+            "- If the message is not clear, make your best guess about what the user might want given your tools and abilities.\n"
+            "- Messages are pre-filtered based on your capabilities before they reach you, so have a strong bias in favor of assuming any messages that reach you are actionable given your tools, and make your best effort on that basis."
+        ),
         user_prompt=user_prompt,
         model="gpt-4o-mini",
     )
