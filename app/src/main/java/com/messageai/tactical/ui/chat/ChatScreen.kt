@@ -461,24 +461,7 @@ class ChatViewModel @Inject constructor(
                                 .onFailure { postImmediate("SITREP generation failed: ${it.message}", context, chatId) }
                         }
                     }
-                    "threats/extract" -> {
-                        val targetChat = contextChat
-                        if (targetChat.isNullOrBlank()) {
-                            postImmediate("I need a chat selected to analyze threats. Open a chat and ask again.", context, chatId)
-                        } else {
-                            val saved = com.messageai.tactical.modules.geo.GeoService(
-                                context = context,
-                                firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance(),
-                                auth = com.google.firebase.auth.FirebaseAuth.getInstance(),
-                                aiService = aiService
-                            ).analyzeChatThreats(targetChat)
-                            saved.onSuccess { count ->
-                                postImmediate("Logged $count threat(s) from the selected chat.", context, chatId)
-                            }.onFailure { e ->
-                                postImmediate("Threat analysis failed: ${e.message}", context, chatId)
-                            }
-                        }
-                    }
+                    // threats/extract path is now handled proactively via assistant/gate and route; no manual execution here
                 }
             } catch (e: Exception) {
                 android.util.Log.w("ChatScreen", "tool execution error: ${e.message}")

@@ -20,6 +20,7 @@ import com.messageai.tactical.util.WorkerHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
+@Deprecated("Replaced by assistant/gate proactive path")
 @HiltWorker
 class ThreatAnalyzeWorker @AssistedInject constructor(
     @Assisted appContext: Context,
@@ -61,11 +62,7 @@ class ThreatAnalyzeWorker @AssistedInject constructor(
                     WorkerHelper.BACKOFF_TIME_UNIT
                 )
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                UNIQUE_PREFIX + chatId,
-                ExistingWorkPolicy.KEEP,
-                req
-            )
+            WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_PREFIX + chatId, ExistingWorkPolicy.REPLACE, req)
         }
     }
 }

@@ -87,6 +87,41 @@ def _err(request_id: str, message: str, status: int = 500) -> JSONResponse:
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+@app.post("/assistant/gate")
+def assistant_gate(body: AiRequestEnvelope):
+    request_id = body.requestId
+    payload = body.payload or {}
+    text = str(payload.get("prompt", ""))
+    # Minimal tools awareness; no chat history to keep it cheap
+    tools = [
+        "threats/extract",
+        "tasks/extract",
+        "sitrep/summarize",
+        "template/warnord",
+        "template/opord",
+        "template/frago",
+        "workflow/casevac/run",
+        "geo/extract",
+    ]
+    gate_prompt = (
+        "You are a cheap gate model. Decide if the following single message should be escalated "
+        "to a full assistant with these tools available: " + ", ".join(tools) + ".\n" 
+        "Return STRICT JSON: {\"escalate\": boolean}. If uncertain, set escalate=true.\n\n"
+        f"MESSAGE:\n{text}"
+    )
+    try:
+        # Use the smallest/cheapest model for gating
+        raw = llm.chat(
+            system_prompt="Return only JSON with {\"escalate\": boolean}.",
+            user_prompt=gate_prompt,
+            model="gpt-4.1-nano",
+        )
+        obj = json.loads(raw or "{}")
+        escalate = bool(obj.get("escalate", True))
+    except Exception:
+        # On error: no-op (do not escalate)
+        escalate = False
+    return _ok(request_id, {"escalate": escalate})
 
 
 @app.post("/template/generate")

@@ -537,6 +537,8 @@ function routeToPath(reqPath: string): { path: string; timeoutMs: number } | nul
       return { path: 'template/frago', timeoutMs: slow };
     case 'v1/assistant/route':
       return { path: 'assistant/route', timeoutMs: fast };
+    case 'v1/assistant/gate':
+      return { path: 'assistant/gate', timeoutMs: fast };
     case 'v1/threats/extract':
       return { path: 'threats/extract', timeoutMs: fast };
     case 'v1/sitrep/summarize':

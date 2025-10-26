@@ -59,6 +59,19 @@ class SendWorker @AssistedInject constructor(
                 .document(messageId)
                 .set(doc, SetOptions.merge())
                 .await()
+            // Gate each human text message for escalation using cheap LLM
+            if (!text.isNullOrBlank() && senderId != com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID) {
+                try {
+                    // Call CF proxy to gate; on escalate=true, trigger assistant/route flow asynchronously
+                    val gate = gateAssistant(text)
+                    android.util.Log.i("SendWorker", "assistant/gate escalate=${gate}")
+                    if (gate) {
+                        com.messageai.tactical.modules.ai.backfill.RouteExecutor.enqueue(applicationContext, chatId, messageId, text)
+                    }
+                } catch (_: Exception) {
+                    // No-op on error per spec
+                }
+            }
             // Update lastMessage metadata
             val last = hashMapOf(
                 "text" to text,
@@ -114,5 +127,33 @@ class SendWorker @AssistedInject constructor(
                 request
             )
         }
+    }
+}
+
+private suspend fun SendWorker.gateAssistant(prompt: String): Boolean {
+    // Minimal Retrofit-free call: use OkHttp since it's already a transitive dependency
+    return try {
+        val base = com.messageai.tactical.BuildConfig.CF_BASE_URL
+        val url = java.net.URL(base + "assistant/gate")
+        val body = ("{" + "\"requestId\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
+            "\"context\":{}," +
+            "\"payload\":{\"prompt\":\"" + prompt.replace("\"", "\\\"") + "\"}" + "}").toByteArray()
+        val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            // Best-effort auth: ID token header if available
+            try {
+                val token = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+                if (!token.isNullOrEmpty()) setRequestProperty("Authorization", "Bearer $token")
+            } catch (_: Exception) {}
+        }
+        conn.outputStream.use { it.write(body) }
+        val resp = conn.inputStream.bufferedReader().use { it.readText() }
+        val obj = org.json.JSONObject(resp)
+        val data = obj.optJSONObject("data")
+        data?.optBoolean("escalate", false) ?: false
+    } catch (_: Exception) {
+        false
     }
 }
