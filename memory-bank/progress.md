@@ -82,6 +82,7 @@
   - Block B: Firebase Functions proxy with auth, rate limiting, HMAC signing, CORS, timeout controls; TypeScript compiles cleanly
   - Block B2: FastAPI LangChain service with 6+ AI endpoints, RAG, Firestore integration, OpenAI, Docker containerization
     - New/Upgraded endpoints: `assistant/route` (LLM tool router), `geo/extract`, `intent/casevac/detect`, `workflow/casevac/run`, `tasks/extract`, `threats/extract`
+    - Threat pipeline wiring fixed: Android now calls `/v1/threats/extract` with `chatId` context, and when selected by AI Buddy the app persists extracted threats to Firestore via `GeoService.analyzeChatThreats`. A `ThreatAnalyzeWorker` also triggers on likely-threat messages to ensure analysis even if the Buddy route isn't used.
   - End-to-end data contracts verified; Postman collection ready
   - Post-QC: RAG moved to precomputed chunk embeddings; CF timeouts adjusted; Buddy chat excluded from LLM chat selection candidates
 - **Core Chat:** Text send pipeline; image pipeline; UI image rendering; WorkManager + Hilt integration; presence dots via RTDB.

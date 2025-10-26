@@ -52,6 +52,14 @@
   - Cloud Function `aiRouter` timeouts increased (DEV): fast=20s, slow=60s; template endpoints use slow.
   - Android OkHttp timeouts increased (connect=15s, read=45s, write=30s) to avoid client-side read timeouts during LLM fills.
 
+### Threat pipeline wiring (2025-10-26)
+- Android now passes `chatId` via context to CF `/v1/threats/extract`, allowing backend to fetch recent messages directly.
+- AI Buddy tool handling updated:
+  - When `assistant/route` selects `threats/extract`, the app calls `GeoService.analyzeChatThreats(chatId)` which persists extracted threats to Firestore `threats`.
+- ChatScreen mirrors the same behavior when routing inside the Buddy chat.
+- Added `ThreatAnalyzeWorker` and a lightweight heuristic in `ChatViewModel.send` to enqueue analysis when a sent message likely indicates a threat (e.g., "IED", "shots fired").
+- Geofence and CASEVAC workers hardened against permission denials (SecurityException) to satisfy lint and avoid crashes when notification/location permissions are missing.
+
 ## How FRAGO/OPORD/WARNORD Fill Now Works
 1) App sends prompt + candidate chats to `assistant/route`; LLM selects tool and (server) infers chat when needed (Buddy chat excluded).
 2) App executes template tool; CF proxies to LangChain with 60s timeout.
