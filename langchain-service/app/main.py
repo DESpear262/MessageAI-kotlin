@@ -219,108 +219,178 @@ def threats_extract(body: AiRequestEnvelope):
     request_id = body.requestId
     ctx = body.context or {}
     payload = body.payload or {}
-    chat_id = ctx.get("chatId")
-    max_messages = int(payload.get("maxMessages", 10))
+    # Strict single-message evaluation only
     trigger_id = payload.get("triggerMessageId")
     current_location = (payload.get("currentLocation") or {})
     cur_lat = current_location.get("lat")
     cur_lon = current_location.get("lon")
 
-    msgs = fs.fetch_recent_messages(chat_id, limit=max_messages)
-    # Prepare a compact JSON preview for the model
-    preview = [
-        {"id": m.get("id"), "text": (m.get("text") or "")[:500]}
-        for m in msgs if (m.get("text") or "").strip()
-    ]
-    # Highlight the primary (trigger) message if provided
-    primary = None
-    if trigger_id:
-        for row in preview:
-            if row.get("id") == trigger_id:
-                primary = row
-                break
+    # Resolve the single message to evaluate
+    message_id = None
+    message_text = None
 
-    rag.index_messages(msgs)
-    context = rag.build_context("Extract threats with locations, tags, severity, and offsets")
+    # Prefer explicit message object or a matching one from messages[]
+    msg_obj = payload.get("message") or {}
+    if isinstance(msg_obj, dict):
+        message_id = msg_obj.get("id") or msg_obj.get("messageId")
+        message_text = (msg_obj.get("text") or "").strip() or None
+
+    client_msgs = payload.get("messages") or []
+    if not message_text and isinstance(client_msgs, list) and client_msgs:
+        if trigger_id:
+            for m in client_msgs:
+                if isinstance(m, dict) and (m.get("id") == trigger_id or m.get("messageId") == trigger_id):
+                    message_id = m.get("id") or m.get("messageId")
+                    message_text = (m.get("text") or "").strip() or None
+                    break
+        if not message_text:
+            m0 = client_msgs[0]
+            if isinstance(m0, dict):
+                message_id = m0.get("id") or m0.get("messageId")
+                message_text = (m0.get("text") or "").strip() or None
+
+    # Final fallback: use payload.prompt as the message text
+    if not message_text:
+        message_text = (payload.get("prompt") or "").strip() or None
+
+    try:
+        logger.info(json.dumps({
+            "event": "threats_extract_resolve",
+            "request_id": request_id,
+            "trigger_id": trigger_id or "",
+            "has_message_obj": isinstance(msg_obj, dict) and bool(msg_obj),
+            "client_msgs_count": len(client_msgs) if isinstance(client_msgs, list) else 0,
+            "has_prompt": bool((payload.get("prompt") or "").strip()),
+            "resolved_message_id": message_id or "",
+            "resolved_text_len": len(message_text or "")
+        }))
+    except Exception:
+        pass
+
+    # If still none, return empty list
+    if not message_text:
+        try:
+            logger.info(json.dumps({
+                "event": "threats_extract_empty",
+                "request_id": request_id,
+                "reason": "no_message_text"
+            }))
+        except Exception:
+            pass
+        return _ok(request_id, ThreatsData(threats=[]).model_dump())
+
+    # Build prompt using only the single message
+    primary_json = {"id": message_id or "", "text": message_text[:500]}
     user_prompt = (
-        "Task: From the recent messages and context, extract ALL distinct threats.\n"
+        "Task: From the message below, extract ALL distinct threats.\n"
         "Return STRICT JSON: {threats:[{id, summary, severity (1-5), confidence (0-1), tags: [string], "
         "positionMode: 'absolute'|'offset', abs?: {lat, lon}, offset?: {north: meters, east: meters}, "
         "radiusM?: int, sourceMsgId?: string}]}.\n"
         "Rules:\n"
-        "- If message provides absolute coords, use positionMode='absolute' with abs {lat, lon}.\n"
-        "- If message provides relative direction/distance (e.g., '2 km north'), use positionMode='offset' with meters north/east relative to CURRENT_LOCATION.\n"
+        "- If the message provides absolute coords, use positionMode='absolute' with abs {lat, lon}.\n"
+        "- If the message provides relative direction/distance (e.g., '2 km north'), use positionMode='offset' with meters north/east relative to CURRENT_LOCATION.\n"
         "- If no location provided, default to positionMode='offset' with offset {north:0, east:0}.\n"
         "- Include concise threat tags like ['armor','small_arms','uav','ied'] when applicable.\n"
-        "- Set radiusM if indicated; otherwise omit or choose a reasonable default (e.g., 500).\n"
         "- Choose severity by judgement (1=low..5=critical).\n"
-        "- Set sourceMsgId to the selected message id.\n\n"
+        "- Set sourceMsgId to the message id if provided.\n\n"
         f"CURRENT_LOCATION: {{'lat': {cur_lat}, 'lon': {cur_lon}}}\n"
-        + (f"PRIMARY_MESSAGE_JSON: {json.dumps(primary)}\n\n" if primary else "")
-        + ("When selecting sourceMsgId, prefer PRIMARY_MESSAGE_JSON.id if the threat originates from that message. " if primary else "")
-        + "Only assign sourceMsgId to a message id present in RECENT_MESSAGES_JSON. If no clear source, omit sourceMsgId.\n\n"
-        + f"RECENT_MESSAGES_JSON: {json.dumps(preview)}\n\n"
-        + f"CONTEXT_SNIPPET:\n{context}"
+        f"PRIMARY_MESSAGE_JSON: {json.dumps(primary_json)}\n\n"
+        f"MESSAGE_TEXT:\n{message_text}"
     )
+
+    try:
+        logger.info(json.dumps({
+            "event": "threats_extract_prompt",
+            "request_id": request_id,
+            "prompt_len": len(user_prompt),
+            "primary_id": primary_json.get("id")
+        }))
+    except Exception:
+        pass
+
     raw = llm.chat(
         system_prompt=(
             "You are a precise information extractor. Always return STRICT JSON per the contract. "
-            "Many of the messages you receive will not be direct instructions. Rather, they will be natural conversations "
-            "on topics which nonetheless require action from you.\n\n"
-            "RULES:\n"
-            "- If the message is a direct instruction, extract the information requested.\n"
-            "- If the message is a natural conversation, think carefully about whether it is actionable for you and take any actions that are appropriate.\n"
-            "- If the message is not clear, make your best guess about what the user might want given your tools and abilities.\n"
-            "- Messages are pre-filtered based on your capabilities before they reach you, so have a strong bias in favor of assuming any messages that reach you are actionable given your tools, and make your best effort on that basis."
+            "You may receive conversational snippets rather than direct instructions; decide if they imply threats and extract accordingly."
         ),
         user_prompt=user_prompt,
         model="gpt-4o-mini",
     )
+
+    try:
+        logger.info(json.dumps({
+            "event": "threats_extract_model_raw",
+            "request_id": request_id,
+            "raw_len": len(raw or ""),
+            "raw_preview": (raw or "")[:180]
+        }))
+    except Exception:
+        pass
+
     threats: list[dict[str, Any]] = []
+    parsed_ok = False
     try:
         obj = json.loads(raw or "{}")
         th = obj.get("threats")
         if isinstance(th, list):
             threats = th
-    except Exception:
-        pass
+            parsed_ok = True
+    except Exception as e:
+        try:
+            logger.warning(json.dumps({
+                "event": "threats_extract_parse_error",
+                "request_id": request_id,
+                "error": str(e)
+            }))
+        except Exception:
+            pass
 
-    # Heuristic fallback if model unavailable or returned invalid JSON
-    if not threats:
-        kw = [
-            ("armor", ["armor", "tank", "apc", "ifv"]),
-            ("small_arms", ["shots fired", "gunfire", "contact", "small arms"]),
-            ("ied", ["ied", "improvised explosive", "roadside bomb"]),
-            ("uav", ["drone", "uav"]) ,
-        ]
+    # Heuristic fallback: use the one message text if model returned nothing
+    used_fallback = False
+    if not threats and message_text:
+        txt = message_text.lower()
         tag = None
-        src = None
-        text = None
-        for m in preview:
-            t = (m.get("text") or "").lower()
-            for tg, words in kw:
-                if any(w in t for w in words):
-                    tag = tg
-                    src = m.get("id")
-                    text = m.get("text")
-                    break
-            if tag:
+        for tg, words in [("armor", ["armor", "tank", "apc", "ifv"]),
+                          ("small_arms", ["shots fired", "gunfire", "contact", "small arms"]),
+                          ("ied", ["ied", "improvised explosive", "roadside bomb"]),
+                          ("uav", ["drone", "uav"])]:
+            if any(w in txt for w in words):
+                tag = tg
                 break
-        if tag and text:
+        if tag:
             threats = [{
                 "id": "auto-1",
-                "summary": text[:180],
+                "summary": message_text[:180],
                 "severity": 3,
                 "confidence": 0.6,
                 "tags": [tag],
                 "positionMode": "offset",
                 "offset": {"north": 0, "east": 0},
                 "radiusM": 500,
-                "sourceMsgId": src,
             }]
+            used_fallback = True
 
-    data = ThreatsData(threats=threats).model_dump()
-    return _ok(request_id, data)
+    # Post-process: set source fields
+    for th in threats:
+        if not isinstance(th, dict):
+            continue
+        if message_id:
+            th.setdefault("sourceMsgId", message_id)
+        th.setdefault("sourceMsgText", message_text)
+
+    try:
+        logger.info(json.dumps({
+            "event": "threats_extract_result",
+            "request_id": request_id,
+            "parsed_ok": parsed_ok,
+            "used_fallback": used_fallback,
+            "threat_count": len(threats),
+            "first_threat_keys": list(threats[0].keys()) if threats else []
+        }))
+    except Exception:
+        pass
+
+    return _ok(request_id, ThreatsData(threats=threats).model_dump())
 
 
 @app.post("/sitrep/summarize")

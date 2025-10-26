@@ -86,6 +86,31 @@ class AIService(
         resp.data ?: emptyMap()
     }
 
+    /**
+     * Single-message threat extraction (no chat history). The backend strictly evaluates the given message only.
+     */
+    suspend fun extractThreatsFromMessage(
+        chatId: String?,
+        messageId: String?,
+        text: String,
+        currentLat: Double?,
+        currentLon: Double?
+    ): Result<List<Map<String, Any?>>> = runCatching {
+        val payload = buildMap<String, Any?> {
+            put("message", mapOf("id" to (messageId ?: ""), "text" to text))
+            if (!messageId.isNullOrBlank()) put("triggerMessageId", messageId)
+            if (currentLat != null && currentLon != null) put("currentLocation", mapOf("lat" to currentLat, "lon" to currentLon))
+        }
+        val resp = adapter.post(
+            path = "threats/extract",
+            payload = payload,
+            context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
+        )
+        val data = resp.data ?: emptyMap()
+        @Suppress("UNCHECKED_CAST")
+        (data["threats"] as? List<Map<String, Any?>>) ?: emptyList()
+    }
+
     /** Single entry point for AI Buddy: send prompt and let server choose tools. */
     suspend fun routeAssistant(chatId: String?, prompt: String, candidateChats: List<Map<String, Any?>> = emptyList()): Result<Map<String, Any?>> = runCatching {
         val resp = adapter.post(
