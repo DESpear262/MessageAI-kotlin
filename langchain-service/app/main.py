@@ -205,7 +205,11 @@ def threats_extract(body: AiRequestEnvelope):
         f"CONTEXT_SNIPPET:\n{context}"
     )
     raw = llm.chat(
-        system_prompt="You are a precise information extractor. Always return STRICT JSON per the contract.",
+        system_prompt="You are a precise information extractor. Always return STRICT JSON per the contract. Many of the messages you recieve will not be direct instructions. Rather, they will be natural conversations on topics which nonetheless require action from you." +         "\n\n" + 
+        "RULES:\n" + "- If the message is a direct instruction, extract the information requested.\n" + 
+        "- If the message is a natural conversation, think carefully about whether it is actionable for you and take any actions that are appropriate.\n" + 
+        "- If the message is not clear, make your best guess about what the user might want given your tools and abilities.\n" + 
+        "- Messages are pre-filtered based on your capabilities before they reach you, so have a strong bias in favor of assuming any messages that reach you are actionable given your tools, and make your best effort on that basis." 
         user_prompt=user_prompt,
         model="gpt-4o-mini",
     )
@@ -269,7 +273,12 @@ def sitrep_summarize(body: AiRequestEnvelope):
     prompt = f"Context messages:\n{context}\n\nTask: {query}"
     # Markdown-only output; no PDFs
     summary = llm.chat(
-        system_prompt="You summarize tactical chat into concise SITREPs in markdown.",
+        system_prompt=(
+            "You summarize tactical chat into concise SITREPs in markdown. "
+            "You may receive conversational snippets rather than direct instructions; "
+            "think carefully about what is actionable and make your best guess about what the user wants. "
+            "Messages are pre-filtered based on your capabilities; bias toward assuming they are actionable."
+        ),
         user_prompt=prompt,
     )
     md = summary or "# SITREP\n\n- Time Window: {}\n".format(time_window)
@@ -377,6 +386,9 @@ def assistant_route(body: AiRequestEnvelope):
             "Buddy chat is a control channel and MUST NOT be used for context; use the provided targetChatId context bundle if present. "
             "Always respond with strict JSON only: {tool: string in tools list, args: object, reply: string}. "
             "If no tool fits or you need a chat selected, use tool='none' and set reply to a short helpful next step."
+            "However, messages are pre-filtered based on your capabilities before they reach you, so have a strong bias in favor of assuming any messages that reach you are actionable given your tools, and make your best effort on that basis."
+            "Sometimes, rather than a direct instruction, the user will be having a natural conversation. In this case, think carefully about whether it is actionable for you and take any actions that are appropriate."
+            "If the user is not clear about what they want, make your best guess about what the user might want given your tools and abilities."
         ),
         user_prompt=(
             "TOOLS LIST: " + ", ".join(tools) + "\n\n" +
@@ -429,7 +441,10 @@ def geo_extract(body: AiRequestEnvelope):
         lon = float(m.group(2))
     else:
         _ = llm.chat(
-            system_prompt="Extract latitude/longitude if present and return only JSON.",
+            system_prompt=(
+                "Extract latitude/longitude if present and return only JSON. "
+                "Conversations may reference places informally; if absolute coordinates are not explicit, return nulls."
+            ),
             user_prompt=f"Text: {text}",
             model="gpt-4o-mini",
         )
@@ -593,7 +608,12 @@ def casevac_detect(body: AiRequestEnvelope):
         f"Logs:\n{text}"
     )
     _ = llm.chat(
-        system_prompt="You are a precise intent classifier for CASEVAC requests.",
+        system_prompt=(
+            "You are a precise intent classifier for CASEVAC requests. "
+            "You may receive conversational snippets rather than direct instructions; "
+            "infer intent from context and make your best good-faith judgment. "
+            "If uncertain but signals suggest possible CASEVAC, reflect that in confidence."
+        ),
         user_prompt=prompt,
         model="gpt-4o-mini",
     )
@@ -644,7 +664,11 @@ def tasks_extract(body: AiRequestEnvelope):
     msgs = fs.fetch_recent_messages(chat_id, limit=120)
     rag.index_messages(msgs)
     _ = llm.chat(
-        system_prompt="You produce short actionable tasks.",
+        system_prompt=(
+            "You produce short actionable tasks from chat. "
+            "Conversations may be indirect; when users discuss plans or next steps, infer tasks and make your best guess. "
+            "Bias toward extracting tasks when plausible given your tools."
+        ),
         user_prompt="Extract tasks (title, optional description, priority 1-5) in JSON.",
         model="gpt-4o-mini",
     )
