@@ -47,6 +47,13 @@ class RouteExecutor @AssistedInject constructor(
                     // Persist threats immediately to Firestore
                     persistThreats(chatId, threats, loc)
                 }
+                // CASEVAC remote-first; fall back to local worker if remote fails
+                "workflow/casevac/run" -> {
+                    val ok = ai.runCasevacRemote(chatId, emptyMap()).isSuccess
+                    if (!ok && !chatId.isNullOrBlank()) {
+                        com.messageai.tactical.modules.ai.work.CasevacWorker.enqueue(applicationContext, chatId, inputData.getString(KEY_MESSAGE_ID))
+                    }
+                }
                 // For other tools, do nothing here; existing modules will execute with their own context
                 else -> { /* no-op */ }
             }

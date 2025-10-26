@@ -61,6 +61,16 @@ class AIService(
         return provider.runWorkflow(path, payload)
     }
 
+    /** Execute the CASEVAC workflow on the server, passing chat context for attribution. */
+    suspend fun runCasevacRemote(chatId: String?, args: Map<String, Any?> = emptyMap()): Result<Map<String, Any?>> = runCatching {
+        val resp = adapter.post(
+            path = "workflow/casevac/run",
+            payload = args,
+            context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
+        )
+        resp.data ?: emptyMap()
+    }
+
     suspend fun extractTasks(chatId: String, maxMessages: Int = 100): Result<List<Map<String, Any?>>> {
         val ctx = contextBuilder.build(
             RagContextBuilder.WindowSpec(chatId = chatId, maxMessages = maxMessages)
