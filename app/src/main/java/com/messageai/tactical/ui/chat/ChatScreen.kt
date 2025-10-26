@@ -509,6 +509,55 @@ class ChatViewModel @Inject constructor(
                             }
                         }
                     }
+                    "workflow/casevac/run" -> {
+                        if (contextChat.isNullOrBlank()) {
+                            postImmediate("I need a chat selected to initiate CASEVAC. Open a chat and ask again.", context, chatId)
+                        } else {
+                            val injected = "[CASEVAC] Initiate CASEVAC mission and tasks. " + text
+                            val result = aiService.planMission(contextChat, prompt = injected, candidateChats = candidates)
+                            result.onSuccess { data ->
+                                try {
+                                    val title = (data["title"] as? String) ?: "CASEVAC"
+                                    val description = (data["description"] as? String)
+                                    val priority = (data["priority"] as? Number)?.toInt() ?: 5
+                                    val missionId = missionService.createMission(
+                                        com.messageai.tactical.modules.missions.Mission(
+                                            chatId = contextChat,
+                                            title = title,
+                                            description = description,
+                                            status = "in_progress",
+                                            priority = priority,
+                                            assignees = emptyList(),
+                                            sourceMsgId = null
+                                        )
+                                    )
+                                    val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                                    tasks.forEach { t ->
+                                        val taskTitle = (t["title"] as? String) ?: return@forEach
+                                        val taskDesc = t["description"] as? String
+                                        val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                        missionService.addTask(
+                                            missionId,
+                                            com.messageai.tactical.modules.missions.MissionTask(
+                                                missionId = missionId,
+                                                title = taskTitle,
+                                                description = taskDesc,
+                                                status = "open",
+                                                priority = taskPriority,
+                                                assignees = emptyList(),
+                                                sourceMsgId = null
+                                            )
+                                        )
+                                    }
+                                    postImmediate("CASEVAC mission created with ${tasks.size} tasks. Open Missions to view.", context, chatId)
+                                } catch (e: Exception) {
+                                    postImmediate("CASEVAC mission persist failed: ${e.message}", context, chatId)
+                                }
+                            }.onFailure {
+                                postImmediate("CASEVAC planning failed: ${it.message}", context, chatId)
+                            }
+                        }
+                    }
                     // threats/extract path is now handled proactively via assistant/gate and route; no manual execution here
                 }
             } catch (e: Exception) {

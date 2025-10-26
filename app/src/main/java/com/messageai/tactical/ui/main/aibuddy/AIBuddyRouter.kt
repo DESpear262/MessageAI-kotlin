@@ -193,7 +193,7 @@ class AIBuddyRouter @Inject constructor(
                         }
                     }
                 }
-                // CASEVAC: use missions/plan module with CASEVAC context injection (server persists/display)
+                // CASEVAC: use missions/plan module with CASEVAC context injection and persist via MissionService
                 "workflow/casevac/run" -> {
                     if (contextChat.isNullOrBlank()) {
                         postToBuddy(senderId = AI_UID, text = "I need a chat selected to initiate CASEVAC. Open a chat and ask again.")
@@ -201,9 +201,46 @@ class AIBuddyRouter @Inject constructor(
                         Log.i("AIBuddyRouter", "casevac_plan_start chatId=$contextChat")
                         val injected = "[CASEVAC] Initiate CASEVAC mission and tasks. " + text
                         ai.planMission(contextChat, prompt = injected, candidateChats = candidates)
-                            .onSuccess {
-                                Log.i("AIBuddyRouter", "casevac_plan_ok")
-                                postToBuddy(senderId = AI_UID, text = "CASEVAC mission created. Open Mission Board to view.")
+                            .onSuccess { data ->
+                                try {
+                                    val title = (data["title"] as? String) ?: "CASEVAC"
+                                    val description = (data["description"] as? String)
+                                    val priority = (data["priority"] as? Number)?.toInt() ?: 5
+                                    val missionId = missionService.createMission(
+                                        com.messageai.tactical.modules.missions.Mission(
+                                            chatId = contextChat,
+                                            title = title,
+                                            description = description,
+                                            status = "in_progress",
+                                            priority = priority,
+                                            assignees = emptyList(),
+                                            sourceMsgId = null
+                                        )
+                                    )
+                                    val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                                    tasks.forEach { t ->
+                                        val taskTitle = (t["title"] as? String) ?: return@forEach
+                                        val taskDesc = t["description"] as? String
+                                        val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                        missionService.addTask(
+                                            missionId,
+                                            com.messageai.tactical.modules.missions.MissionTask(
+                                                missionId = missionId,
+                                                title = taskTitle,
+                                                description = taskDesc,
+                                                status = "open",
+                                                priority = taskPriority,
+                                                assignees = emptyList(),
+                                                sourceMsgId = null
+                                            )
+                                        )
+                                    }
+                                    Log.i("AIBuddyRouter", "casevac_plan_persisted missionId=$missionId tasks=${tasks.size}")
+                                    postToBuddy(senderId = AI_UID, text = "CASEVAC mission created with ${tasks.size} tasks. Open Missions to view.")
+                                } catch (e: Exception) {
+                                    Log.w("AIBuddyRouter", "casevac_plan_persist_failed: ${e.message}")
+                                    postToBuddy(senderId = AI_UID, text = "CASEVAC mission persist failed: ${e.message}")
+                                }
                             }
                             .onFailure {
                                 Log.w("AIBuddyRouter", "casevac_plan_failed: ${it.message}")
