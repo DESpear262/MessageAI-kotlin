@@ -7,6 +7,8 @@
 package com.messageai.tactical.ui.main
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ListAlt
@@ -81,7 +83,12 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
                 val ctx = LocalContext.current
                 var kind by remember { mutableStateOf<String?>(null) }
                 Column(modifier = Modifier.padding(padding)) {
-                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Button(onClick = { kind = "sitrep" }) { Text("SITREP") }
                         Button(onClick = { kind = "warnord" }) { Text("WARNORD") }
                         Button(onClick = { kind = "opord" }) { Text("OPORD") }
