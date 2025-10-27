@@ -1,0 +1,120 @@
+%% MessageAI Architecture v2 (Kotlin) – Core + AI Modules
+flowchart LR
+  %% ==== UI LAYER ====
+  subgraph UI[UI – Jetpack Compose]
+    Screens[Chat • Groups • MissionBoard • AIActionSheet • TemplateWizard]
+  end
+
+  %% ==== DOMAIN LAYER ====
+  subgraph Domain[Domain / Use Cases]
+    Interactor[AIFeatureInteractor]
+    MessageUC[Messaging Interactors]
+  end
+
+  %% ==== DATA LAYER ====
+  subgraph Data[Data Layer]
+    Firestore[(Firebase Firestore)]
+    Room[(Room DB)]
+    Storage[(Firebase Storage)]
+  end
+
+  %% ==== BACKGROUND / SYNC ====
+  subgraph BG[Background & Sync]
+    WM[WorkManager (queue/retry)]
+    FCM[Firebase Cloud Messaging]
+  end
+
+  %% ==== DI / SECURITY ====
+  subgraph Infra[Infrastructure]
+    Hilt[Hilt (DI Modules)]
+    Keystore[Android Keystore]
+  end
+
+  %% ==== AI MODULE ====
+  subgraph AI[AI Module (Provider-Swappable)]
+    AIService[AIService (facade)]
+    IAI[IAIProvider (interface)]
+    OpenAIProv[OpenAIProvider (Cloud via CF)]
+    LocalProv[LocalProvider (Mock/Offline)]
+    DoDProv[DoDProvider (On‑Prem/Future)]
+    AICache[(AICache)]
+    AIMemory[(AIMemory – RAG context)]
+  end
+
+  %% ==== GEO MODULE ====
+  subgraph GEO[Geo Module]
+    GeoService[GeoService]
+    GeoProviders[Geo Providers (Firebase Presence / MILNET feed)]
+  end
+
+  %% ==== REPORTING MODULE ====
+  subgraph REPORT[Reporting Module]
+    ReportService[ReportService (SITREP / Templates)]
+  end
+
+  %% ==== TRANSPORT ABSTRACTION ====
+  subgraph Transport[Transport Abstraction]
+    FirestoreT[FirestoreTransport (MVP)]
+    BluetoothT[BluetoothTransport (Future)]
+    WiFiT[Wi‑FiDirectTransport (Future)]
+  end
+
+  %% ==== CLOUD FUNCTIONS / GATEWAYS ====
+  subgraph Cloud[Cloud Functions / Gateways]
+    aiRouter[/aiRouter (LLM Gateway)/]
+    notifTrigger[/onNewMessage → FCM/]
+    SecureGW[/DoD Gateway API (Future)/]
+  end
+
+  %% ==== FLOWS ====
+  Screens --> Interactor
+  Screens --> MessageUC
+
+  %% Domain to services
+  Interactor --> AIService
+  Interactor --> GeoService
+  Interactor --> ReportService
+  MessageUC --> Firestore
+  MessageUC --> Room
+  MessageUC --> Storage
+
+  %% AI module internals
+  AIService --> IAI
+  AIService --> AICache
+  AIService --> AIMemory
+  AIMemory --> Room
+  IAI --> OpenAIProv
+  IAI --> LocalProv
+  IAI --> DoDProv
+
+  %% Cloud routing
+  OpenAIProv --> aiRouter
+  aiRouter --> SecureGW
+  notifTrigger --> FCM
+
+  %% Geo + Reporting
+  GeoService --> GeoProviders
+  GeoService --> Firestore
+  ReportService --> Firestore
+  ReportService --> Storage
+
+  %% Background & notifications
+  WM --> AIService
+  WM --> MessageUC
+  FCM --> Screens
+
+  %% Transport usage
+  FirestoreT --> Firestore
+  BluetoothT -. future .- MessageUC
+  WiFiT -. future .- MessageUC
+
+  %% DI / Security (dashed links)
+  Hilt -. binds .- AIService
+  Hilt -. binds .- GeoService
+  Hilt -. binds .- ReportService
+  Hilt -. binds .- MessageUC
+  Keystore -. secure tokens/keys .- AIService
+
+  %% Legend (optional)
+  classDef future stroke-dasharray: 5 5, color:#666;
+  class BluetoothT,WiFiT future;

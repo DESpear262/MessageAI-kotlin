@@ -1,0 +1,7 @@
+[
+  { "name": "Alpha Med Station", "lat": 34.010, "lon": -117.010, "capabilities": ["trauma"], "available": true },
+  { "name": "Bravo Field Hospital", "lat": 34.100, "lon": -117.200, "capabilities": ["surgery","trauma"], "available": true },
+  { "name": "Charlie Clinic", "lat": 33.950, "lon": -117.050, "capabilities": ["basic"], "available": true }
+]
+
+

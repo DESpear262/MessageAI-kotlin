@@ -1,7 +1,7 @@
 package com.messageai.tactical.data.remote
 
 import com.google.firebase.Timestamp
-import com.google.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertThat
 import com.messageai.tactical.data.remote.model.ChatDoc
 import com.messageai.tactical.data.remote.model.LastMessage
 import com.messageai.tactical.data.remote.model.MessageDoc

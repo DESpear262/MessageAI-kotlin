@@ -65,6 +65,9 @@ android {
             // Namespace per-flavor to avoid manifest pkg usage
             @Suppress("UnstableApiUsage")
             namespace = "com.messageai.tactical.dev"
+            // AI feature flags & Cloud Function base URL (dev)
+            buildConfigField("boolean", "AI_ENABLED", "true")
+            buildConfigField("String", "CF_BASE_URL", "\"http://10.0.2.2:5001/messageai-kotlin/us-central1/aiRouter/v1/\"")
             // This is where your dev google-services.json lives
             // app/src/dev/google-services.json
         }
@@ -73,6 +76,9 @@ android {
             // No suffix — matches prod google-services.json client
             @Suppress("UnstableApiUsage")
             namespace = "com.messageai.tactical"
+            // AI feature flags & Cloud Function base URL (prod)
+            buildConfigField("boolean", "AI_ENABLED", "true")
+            buildConfigField("String", "CF_BASE_URL", "\"https://us-central1-your-project.cloudfunctions.net/aiRouter/v1/\"")
             // app/src/prod/google-services.json
         }
     }
@@ -174,9 +180,27 @@ dependencies {
     // Kotlinx Serialization (JSON)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // ----- Networking: Retrofit + OkHttp + Moshi -----
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+
+    // ----- Google Play Services (Location/Maps) -----
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+
 
     // ----- Testing (optional placeholders) -----
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("com.google.truth:truth:1.4.0")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("androidx.work:work-testing:2.9.0")
+    testImplementation("org.robolectric:robolectric:4.11.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.02"))
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
@@ -189,6 +213,9 @@ dependencies {
 
     // ----- EXIF (for stripping/rotation/HEIC handling) -----
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    // ----- Location (for Geo features used elsewhere) -----
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
 
 // Keep Kotlin at 17 for all Kotlin compile tasks (covers KSP too)
@@ -304,4 +331,28 @@ tasks.register("runProdAll") {
             logger.lifecycle("Deployed and launched on $serial")
         }
     }
+}
+
+// --- Test stability tweaks (Windows file locks, single fork) -----------------
+tasks.withType<Test>().configureEach {
+    // Avoid parallel forks to reduce file locking on Windows
+    maxParallelForks = 1
+    forkEvery = 1
+    // Always re-run tests to avoid cached binary conflicts
+    outputs.upToDateWhen { false }
+    // Pre-clean possible locked test result dirs before each test task
+    dependsOn("cleanUnitTestResults")
+    testLogging {
+        events("failed")
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
+
+// Clean stale test result binaries before unit tests to prevent locks (Windows)
+tasks.register<Delete>("cleanUnitTestResults") {
+    delete(
+        layout.buildDirectory.dir("test-results"),
+        layout.buildDirectory.dir("reports/tests")
+    )
 }

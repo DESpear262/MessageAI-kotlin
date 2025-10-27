@@ -17,6 +17,7 @@ import com.messageai.tactical.data.remote.model.MessageDoc
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.messageai.tactical.util.ActiveChatTracker
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +25,8 @@ import javax.inject.Singleton
 class MessageListener @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val activeChat: ActiveChatTracker
 ) {
     private var registration: ListenerRegistration? = null
     private var onDataChanged: (() -> Unit)? = null
@@ -74,6 +76,10 @@ class MessageListener @Inject constructor(
                 // Update unread count for this chat - query ALL messages, not just snapshot
                 val myUid = auth.currentUser?.uid
                 if (myUid != null) {
+                    // If this chat is currently active, do not overwrite unread count
+                    if (activeChat.activeChatId.value == chatId) {
+                        android.util.Log.d("MessageListener", "Skip unread update for active chat $chatId")
+                    } else {
                     // Get ALL messages for this chat from Room
                     val allMessages = db.messageDao().getAllMessagesForChat(chatId)
                     val unreadMessages = allMessages.filter { entity ->
@@ -87,6 +93,7 @@ class MessageListener @Inject constructor(
                     }
                     android.util.Log.d("MessageListener", "Unread count for chat $chatId: ${unreadMessages.size} (${allMessages.size} total messages in chat)")
                     db.chatDao().updateUnread(chatId, unreadMessages.size)
+                    }
                 }
                 
                 // Notify UI to refresh

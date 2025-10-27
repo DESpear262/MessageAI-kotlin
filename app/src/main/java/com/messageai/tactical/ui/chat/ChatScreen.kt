@@ -1,5 +1,13 @@
+/**
+ * MessageAI – Chat screen UI and view model.
+ *
+ * Displays a paginated message list with real-time updates, optimistic sending,
+ * image attachments (gallery + camera), and presence indicators. Handles message
+ * lifecycle including Room persistence, WorkManager queuing, and Firestore sync.
+ */
 package com.messageai.tactical.ui.chat
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,7 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
@@ -25,6 +32,15 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.catch
+import android.util.Log
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.Dispatchers
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.messageai.tactical.data.db.ChatDao
@@ -33,9 +49,16 @@ import com.messageai.tactical.data.remote.ImageUploadWorker
 import com.messageai.tactical.data.remote.MessageListener
 import com.messageai.tactical.data.remote.MessageRepository
 import com.messageai.tactical.data.remote.MessageService
+import com.messageai.tactical.data.remote.ReadReceiptUpdater
 import com.messageai.tactical.data.remote.PresenceService
 import com.messageai.tactical.data.remote.model.MessageDoc
+import com.messageai.tactical.ui.components.PresenceDot
+import com.messageai.tactical.util.CameraHelper
+import com.messageai.tactical.util.ActiveChatTracker
+import com.messageai.tactical.modules.geo.GeoService
+import com.messageai.tactical.util.ParticipantHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.messageai.tactical.modules.reporting.ReportService
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
@@ -90,14 +113,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     // Handle camera launch after permission granted
     LaunchedEffect(shouldLaunchCamera) {
         if (shouldLaunchCamera) {
-            // Create file in cache/images/ subdirectory to match file_paths.xml
-            val cacheImagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-            val imageFile = File(cacheImagesDir, "camera_${System.currentTimeMillis()}.jpg")
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                imageFile
-            )
+            val (_, uri) = CameraHelper.createImageFile(context)
             cameraImageUri = uri
             cameraLauncher.launch(uri)
             shouldLaunchCamera = false
@@ -116,7 +132,17 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     LaunchedEffect(chatId) { 
         vm.startListener(chatId, scope)
         vm.markAsRead(chatId)
+        vm.markAllAsRead(chatId, scope)
     }
+
+    /*
+     * BUG NOTE (temporary workaround):
+     * Precise unread decrementor via visibility tracking is disabled for now due to
+     * intermittent paging snapshot index issues reported in testing. We currently
+     * clear unread count on chat open instead. Re-enable after fixing underlying bug.
+     *
+     * // LaunchedEffect(listState, vm.myUid) { ... }
+     */
     DisposableEffect(chatId) {
         onDispose { vm.stopListener() }
     }
@@ -131,7 +157,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         Text(title)
                     }
                 },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }
+                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                actions = { }
             )
         }
     ) { padding ->
@@ -149,7 +176,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(18.dp))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(bubbleColor)
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
                                     .widthIn(min = 40.dp, max = 280.dp)
@@ -201,14 +228,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                         androidx.core.content.ContextCompat.checkSelfPermission(
                             context, permission
                         ) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                            // Permission already granted - create file in cache/images/ subdirectory
-                            val cacheImagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-                            val imageFile = File(cacheImagesDir, "camera_${System.currentTimeMillis()}.jpg")
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                imageFile
-                            )
+                            // Permission already granted - create file and launch camera
+                            val (_, uri) = CameraHelper.createImageFile(context)
                             cameraImageUri = uri
                             cameraLauncher.launch(uri)
                         }
@@ -239,17 +260,6 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     }
 }
 
-@Composable
-private fun PresenceDot(isOnline: Boolean) {
-    val color = if (isOnline) Color(0xFF2ECC71) else Color(0xFFB0B0B0)
-    Box(
-        modifier = Modifier
-            .size(10.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(color)
-    )
-}
-
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val repo: MessageRepository,
@@ -258,7 +268,12 @@ class ChatViewModel @Inject constructor(
     private val chatDao: ChatDao,
     private val presence: PresenceService,
     private val messageListener: MessageListener,
-    private val imageService: ImageService
+    private val imageService: ImageService,
+    private val readReceiptUpdater: ReadReceiptUpdater,
+    private val activeChat: ActiveChatTracker,
+    private val missionService: com.messageai.tactical.modules.missions.MissionService,
+    private val aiService: com.messageai.tactical.modules.ai.AIService,
+    private val reportService: ReportService
 ) : androidx.lifecycle.ViewModel() {
     val myUid: String? get() = auth.currentUser?.uid
 
@@ -268,8 +283,7 @@ class ChatViewModel @Inject constructor(
 
     fun otherParticipant(chatId: String) = chatDao.getChat(chatId).map { entity ->
         entity?.let {
-            val list = try { kotlinx.serialization.json.Json.decodeFromString<List<String>>(it.participants) } catch (_: Exception) { emptyList() }
-            list.firstOrNull { uid -> uid != myUid } ?: myUid
+            ParticipantHelper.getOtherParticipant(it.participants, myUid ?: "")
         }
     }
 
@@ -277,13 +291,45 @@ class ChatViewModel @Inject constructor(
         if (uid.isNullOrEmpty()) kotlinx.coroutines.flow.flowOf(false) else presence.isUserOnline(uid)
 
     fun startListener(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
+        activeChat.setActive(chatId)
         messageListener.start(chatId, scope)
     }
-    fun stopListener() { messageListener.stop() }
+    fun stopListener() { 
+        activeChat.setActive(null)
+        messageListener.stop() 
+    }
 
     suspend fun markAsRead(chatId: String) {
         // Clear unread count when user opens chat
         repo.db.chatDao().updateUnread(chatId, 0)
+    }
+
+    /**
+     * Marks the given messages as read for the current user by adding the user's UID
+     * to each message's readBy list in Firestore. This triggers listeners to recalculate
+     * unread counts so badges decrement as messages are viewed.
+     */
+    fun markMessagesRead(chatId: String, messageIds: List<String>, scope: kotlinx.coroutines.CoroutineScope) {
+        readReceiptUpdater.markRead(chatId, messageIds, scope)
+    }
+
+    /** Marks all messages in this chat as read for the current user (one-time on open). */
+    fun markAllAsRead(chatId: String, scope: kotlinx.coroutines.CoroutineScope) {
+        val myUidLocal = myUid ?: return
+        scope.launch(Dispatchers.IO) {
+            val all = repo.db.messageDao().getAllMessagesForChat(chatId)
+            val json = Json { ignoreUnknownKeys = true }
+            val toMark = all.asSequence()
+                .filter { it.senderId != myUidLocal }
+                .mapNotNull { m ->
+                    val readBy = try { json.decodeFromString<List<String>>(m.readBy) } catch (_: Exception) { emptyList() }
+                    if (readBy.contains(myUidLocal)) null else m.id
+                }
+                .toList()
+            if (toMark.isNotEmpty()) {
+                readReceiptUpdater.markRead(chatId, toMark, scope)
+            }
+        }
     }
 
     suspend fun send(chatId: String, text: String, context: android.content.Context) {
@@ -304,6 +350,246 @@ class ChatViewModel @Inject constructor(
         )
         repo.db.messageDao().upsert(entity)
         com.messageai.tactical.data.remote.SendWorker.enqueue(context, id, chatId, me.uid, text, entity.timestamp)
+        // Heuristic: if message text appears to describe a nearby threat, trigger analysis for its chat.
+        if (!text.isNullOrBlank()) {
+            val t = text.lowercase()
+            val looksLikeThreat = listOf("gunfire", "shots fired", "active shooter", "enemy", "contact", "ied", "ambush", "hostile", "attack").any { t.contains(it) }
+            if (looksLikeThreat) {
+                try { com.messageai.tactical.data.remote.ThreatAnalyzeWorker.enqueue(context, chatId, 100) } catch (_: Exception) {}
+            }
+        }
+
+        // If this is the AI Buddy chat, route the prompt and persist the assistant reply to the same chat
+        val buddyChatId = com.messageai.tactical.data.remote.FirestorePaths.directChatId(
+            me.uid, com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID
+        )
+        if (chatId == buddyChatId) {
+            val contextChat = activeChat.lastNonBuddyChatId.value
+            // Build candidate chats snapshot for routing context (id, name, last message snippet, updatedAt)
+            val buddyChatId = com.messageai.tactical.data.remote.FirestorePaths.directChatId(
+                me.uid, com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID
+            )
+            val chats = repo.db.chatDao().getChats().first()
+            val candidates = chats.filter { it.id != buddyChatId && (it.name ?: "").lowercase() != "ai buddy" }
+                .map { ce ->
+                mapOf(
+                    "id" to ce.id,
+                    "name" to (ce.name ?: ""),
+                    "updatedAt" to ce.updatedAt,
+                    "lastMessage" to (ce.lastMessage ?: "")
+                )
+            }
+            android.util.Log.i(
+                "ChatScreen",
+                "Buddy routeAssistant start buddyChatId=$chatId contextChat=$contextChat promptLen=${text.length} candidates=${candidates.size}"
+            )
+            // Log a fresh Firebase ID token for manual testing of aiRouter
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(false)
+                ?.addOnSuccessListener { android.util.Log.i("ID_TOKEN", it.token ?: "") }
+            // Always hit the router with prompt + candidates
+            val decision = aiService.routeAssistant(contextChat, text, candidateChats = candidates).getOrElse { emptyMap() }
+            val raw = decision["decision"]?.toString() ?: "{\"tool\":\"none\",\"args\":{},\"reply\":\"I didn't understand.\"}"
+            android.util.Log.d("ChatScreen", "Buddy routeAssistant decisionRaw=$raw")
+            val (humanReadable, selectedTool) = try {
+                val obj = org.json.JSONObject(raw)
+                val reply = obj.optString("reply", "")
+                val tool = obj.optString("tool", "none")
+                android.util.Log.d("ChatScreen", "Buddy routeAssistant parsed tool=$tool hasReply=${reply.isNotBlank()}")
+                val textForUser = if (reply.isNotBlank()) reply else {
+                    when (tool) {
+                        "none" -> "I couldn't map that to a tool. Tell me which chat or be more specific."
+                        else -> "Selected $tool. Proceeding."
+                    }
+                }
+                textForUser to tool
+            } catch (_: Exception) {
+                android.util.Log.w("ChatScreen", "Buddy routeAssistant decision parse error")
+                "I'm processing that request." to "none"
+            }
+            val aiMsgId = UUID.randomUUID().toString()
+            // Persist AI reply locally for offline-first before enqueuing
+            val aiEntity = com.messageai.tactical.data.db.MessageEntity(
+                id = aiMsgId,
+                chatId = chatId,
+                senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+                text = humanReadable,
+                imageUrl = null,
+                timestamp = System.currentTimeMillis(),
+                status = "SENDING",
+                readBy = "[]",
+                deliveredBy = "[]",
+                synced = false,
+                createdAt = System.currentTimeMillis()
+            )
+            repo.db.messageDao().upsert(aiEntity)
+            com.messageai.tactical.data.remote.SendWorker.enqueue(
+                context = context,
+                messageId = aiMsgId,
+                chatId = chatId,
+                senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+                text = humanReadable,
+                clientTs = System.currentTimeMillis()
+            )
+
+            // Execute the selected tool (generate and warm cache), then notify user.
+            try {
+                when (selectedTool) {
+                    "template/warnord" -> reportService.generateWarnord(
+                        chatId = contextChat,
+                        prompt = text,
+                        candidateChats = candidates
+                    ).onSuccess { postImmediate("WARNORD ready. Open Outputs > WARNORD to preview and share.", context, chatId) }
+                        .onFailure { postImmediate("WARNORD generation failed: ${it.message}", context, chatId) }
+                    "template/opord" -> reportService.generateOpord(
+                        chatId = contextChat,
+                        prompt = text,
+                        candidateChats = candidates
+                    ).onSuccess { postImmediate("OPORD ready. Open Outputs > OPORD to preview and share.", context, chatId) }
+                        .onFailure { postImmediate("OPORD generation failed: ${it.message}", context, chatId) }
+                    "template/frago" -> reportService.generateFrago(
+                        chatId = contextChat,
+                        prompt = text,
+                        candidateChats = candidates
+                    ).onSuccess { postImmediate("FRAGO ready. Open Outputs > FRAGO to preview and share.", context, chatId) }
+                        .onFailure { postImmediate("FRAGO generation failed: ${it.message}", context, chatId) }
+                    "sitrep/summarize" -> {
+                        if (contextChat.isNullOrBlank()) {
+                            postImmediate("I need a chat selected to generate a SITREP. Open a chat and ask again.", context, chatId)
+                        } else {
+                            reportService.generateSITREP(contextChat, "6h")
+                                .onSuccess { postImmediate("SITREP ready for the current chat. Open Outputs to view.", context, chatId) }
+                                .onFailure { postImmediate("SITREP generation failed: ${it.message}", context, chatId) }
+                        }
+                    }
+                    "missions/plan" -> {
+                        if (contextChat.isNullOrBlank()) {
+                            postImmediate("Open a chat to derive a mission plan from recent context.", context, chatId)
+                        } else {
+                            val result = aiService.planMission(contextChat, prompt = text, candidateChats = candidates)
+                            result.onSuccess { data ->
+                                val title = (data["title"] as? String) ?: "Mission"
+                                val description = (data["description"] as? String)
+                                val priority = (data["priority"] as? Number)?.toInt() ?: 3
+                                try {
+                                    val missionId = missionService.createMission(
+                                        com.messageai.tactical.modules.missions.Mission(
+                                            chatId = contextChat,
+                                            title = title,
+                                            description = description,
+                                            status = "open",
+                                            priority = priority,
+                                            assignees = emptyList(),
+                                            sourceMsgId = null
+                                        )
+                                    )
+                                    val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                                    tasks.forEach { t ->
+                                        val taskTitle = (t["title"] as? String) ?: return@forEach
+                                        val taskDesc = t["description"] as? String
+                                        val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                        missionService.addTask(
+                                            missionId,
+                                            com.messageai.tactical.modules.missions.MissionTask(
+                                                missionId = missionId,
+                                                title = taskTitle,
+                                                description = taskDesc,
+                                                status = "open",
+                                                priority = taskPriority,
+                                                assignees = emptyList(),
+                                                sourceMsgId = null
+                                            )
+                                        )
+                                    }
+                                    postImmediate("Mission created with ${tasks.size} tasks. Open Mission Board to view.", context, chatId)
+                                } catch (e: Exception) {
+                                    postImmediate("Mission planning failed to persist: ${e.message}", context, chatId)
+                                }
+                            }.onFailure {
+                                postImmediate("Mission planning failed: ${it.message}", context, chatId)
+                            }
+                        }
+                    }
+                    "workflow/casevac/run" -> {
+                        if (contextChat.isNullOrBlank()) {
+                            postImmediate("I need a chat selected to initiate CASEVAC. Open a chat and ask again.", context, chatId)
+                        } else {
+                            val injected = "[CASEVAC] Initiate CASEVAC mission and tasks. " + text
+                            val result = aiService.planMission(contextChat, prompt = injected, candidateChats = candidates)
+                            result.onSuccess { data ->
+                                try {
+                                    val title = (data["title"] as? String) ?: "CASEVAC"
+                                    val description = (data["description"] as? String)
+                                    val priority = (data["priority"] as? Number)?.toInt() ?: 5
+                                    val missionId = missionService.createMission(
+                                        com.messageai.tactical.modules.missions.Mission(
+                                            chatId = contextChat,
+                                            title = title,
+                                            description = description,
+                                            status = "in_progress",
+                                            priority = priority,
+                                            assignees = emptyList(),
+                                            sourceMsgId = null
+                                        )
+                                    )
+                                    val tasks = (data["tasks"] as? List<Map<String, Any?>>).orEmpty()
+                                    tasks.forEach { t ->
+                                        val taskTitle = (t["title"] as? String) ?: return@forEach
+                                        val taskDesc = t["description"] as? String
+                                        val taskPriority = (t["priority"] as? Number)?.toInt() ?: 3
+                                        missionService.addTask(
+                                            missionId,
+                                            com.messageai.tactical.modules.missions.MissionTask(
+                                                missionId = missionId,
+                                                title = taskTitle,
+                                                description = taskDesc,
+                                                status = "open",
+                                                priority = taskPriority,
+                                                assignees = emptyList(),
+                                                sourceMsgId = null
+                                            )
+                                        )
+                                    }
+                                    postImmediate("CASEVAC mission created with ${tasks.size} tasks. Open Missions to view.", context, chatId)
+                                } catch (e: Exception) {
+                                    postImmediate("CASEVAC mission persist failed: ${e.message}", context, chatId)
+                                }
+                            }.onFailure {
+                                postImmediate("CASEVAC planning failed: ${it.message}", context, chatId)
+                            }
+                        }
+                    }
+                    // threats/extract path is now handled proactively via assistant/gate and route; no manual execution here
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ChatScreen", "tool execution error: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun postImmediate(text: String, context: Context, chatId: String) {
+        val id = java.util.UUID.randomUUID().toString()
+        val entity = com.messageai.tactical.data.db.MessageEntity(
+            id = id,
+            chatId = chatId,
+            senderId = com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+            text = text,
+            imageUrl = null,
+            timestamp = System.currentTimeMillis(),
+            status = "SENDING",
+            readBy = "[]",
+            deliveredBy = "[]",
+            synced = false,
+            createdAt = System.currentTimeMillis()
+        )
+        repo.db.messageDao().upsert(entity)
+        com.messageai.tactical.data.remote.SendWorker.enqueue(
+            context,
+            id,
+            chatId,
+            com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID,
+            text,
+            entity.timestamp
+        )
     }
 
     suspend fun sendImage(chatId: String, uri: Uri, context: android.content.Context) {

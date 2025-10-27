@@ -12,6 +12,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,9 +27,9 @@ import com.messageai.tactical.ui.chat.ChatScreen
 import com.messageai.tactical.ui.main.MainTabs
 import com.messageai.tactical.ui.theme.MessageAITheme
 import com.messageai.tactical.notifications.NotificationCenter
+import com.messageai.tactical.util.FcmTokenHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
 
 @Composable
 /** Root composable establishing theme, nav controller, and routes. */
@@ -75,22 +77,7 @@ fun MessageAiAppRoot() {
                 if (isAuthenticated) {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
-                        android.util.Log.d("AppRoot", "Requesting FCM token for user ${user.uid}")
-                        FirebaseMessaging.getInstance().token
-                            .addOnSuccessListener { token ->
-                                android.util.Log.d("AppRoot", "FCM token received: $token")
-                                FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                                    .update("fcmToken", token)
-                                    .addOnSuccessListener {
-                                        android.util.Log.d("AppRoot", "FCM token saved to Firestore for user ${user.uid}")
-                                    }
-                                    .addOnFailureListener { e ->
-                                        android.util.Log.e("AppRoot", "Failed to save FCM token to Firestore", e)
-                                    }
-                            }
-                            .addOnFailureListener { e ->
-                                android.util.Log.e("AppRoot", "Failed to get FCM token", e)
-                            }
+                        FcmTokenHelper.updateTokenForUser(user.uid, FirebaseFirestore.getInstance())
                     } else {
                         android.util.Log.w("AppRoot", "No user logged in, skipping FCM token registration")
                     }
@@ -100,7 +87,8 @@ fun MessageAiAppRoot() {
             androidx.compose.material3.Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { padding ->
             NavHost(
                 navController = navController,
-                startDestination = if (isAuthenticated) "main" else "auth"
+                startDestination = if (isAuthenticated) "main" else "auth",
+                modifier = Modifier.padding(padding)
             ) {
                 composable("auth") {
                     AuthScreen(
@@ -124,7 +112,8 @@ fun MessageAiAppRoot() {
                     MainTabs(
                         onLogout = { vm.logout() },
                         onOpenChat = { chatId -> navController.navigate("chat/$chatId") },
-                        onCreateChat = { navController.navigate("createChat") }
+                        onCreateChat = { navController.navigate("createChat") },
+                        onOpenMission = { missionId, chatId -> navController.navigate("mission/$missionId?chatId=$chatId") }
                     )
                 }
                 composable("createChat") {
@@ -142,6 +131,21 @@ fun MessageAiAppRoot() {
                 ) { backStackEntry ->
                     val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
                     ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
+                }
+                composable(
+                    route = "mission/{missionId}?chatId={chatId}",
+                    arguments = listOf(
+                        navArgument("missionId") { type = NavType.StringType },
+                        navArgument("chatId") { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { backStackEntry ->
+                    val missionId = backStackEntry.arguments?.getString("missionId") ?: return@composable
+                    val chatId = backStackEntry.arguments?.getString("chatId")
+                    com.messageai.tactical.ui.main.MissionTasksScreen(
+                        missionId = missionId,
+                        chatId = chatId,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
             }

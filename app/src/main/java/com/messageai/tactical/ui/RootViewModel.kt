@@ -10,16 +10,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.messageai.tactical.data.remote.RtdbPresenceService
+import com.messageai.tactical.data.db.AppDatabase
+import com.messageai.tactical.data.remote.ChatService
+import com.messageai.tactical.data.remote.MessageListener
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class RootViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val presenceService: RtdbPresenceService
+    private val presenceService: RtdbPresenceService,
+    private val db: AppDatabase,
+    private val chatService: ChatService,
+    private val messageListener: MessageListener
 ) : ViewModel() {
     private val _isAuthenticated = MutableStateFlow(auth.currentUser != null)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated
@@ -56,8 +64,15 @@ class RootViewModel @Inject constructor(
     /** Signs out the user, sets presence offline, and updates state. */
     fun logout() {
         viewModelScope.launch {
-            presenceService.goOffline()
-            auth.signOut()
+            withContext(Dispatchers.IO) {
+                presenceService.goOffline()
+                // Stop any active listeners to avoid cross-user data streaming
+                chatService.stop()
+                messageListener.stop()
+                auth.signOut()
+                // Clear local caches to prevent cross-account leakage
+                db.clearAllTables()
+            }
             _isAuthenticated.value = false
         }
     }

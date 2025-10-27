@@ -1,0 +1,189 @@
+[
+  {
+    "name": "Austin North General Hospital",
+    "lat": 30.28,
+    "lon": -97.74,
+    "capabilities": [
+      "trauma",
+      "surgery",
+      "icu",
+      "helipad"
+    ],
+    "available": true
+  },
+  {
+    "name": "Austin South Trauma Center",
+    "lat": 30.22,
+    "lon": -97.78,
+    "capabilities": [
+      "trauma",
+      "icu",
+      "burn"
+    ],
+    "available": false
+  },
+  {
+    "name": "Corpus Christi Bay Area Medical",
+    "lat": 27.805,
+    "lon": -97.395,
+    "capabilities": [
+      "surgery",
+      "icu",
+      "maternity",
+      "helipad"
+    ],
+    "available": true
+  },
+  {
+    "name": "Corpus Christi Shoreline Hospital",
+    "lat": 27.77,
+    "lon": -97.41,
+    "capabilities": [
+      "trauma",
+      "icu",
+      "pediatrics"
+    ],
+    "available": false
+  },
+  {
+    "name": "San Antonio Regional Medical Center",
+    "lat": 29.425,
+    "lon": -98.495,
+    "capabilities": [
+      "trauma",
+      "surgery",
+      "icu",
+      "helipad"
+    ],
+    "available": true
+  },
+  {
+    "name": "Mission Trail Community Hospital",
+    "lat": 29.35,
+    "lon": -98.44,
+    "capabilities": [
+      "basic",
+      "maternity"
+    ],
+    "available": true
+  },
+  {
+    "name": "Houston Midtown General",
+    "lat": 29.76,
+    "lon": -95.37,
+    "capabilities": [
+      "trauma",
+      "surgery",
+      "icu",
+      "cardiac",
+      "helipad"
+    ],
+    "available": true
+  },
+  {
+    "name": "Bayou City Medical Pavilion",
+    "lat": 29.735,
+    "lon": -95.41,
+    "capabilities": [
+      "basic",
+      "pediatrics"
+    ],
+    "available": false
+  },
+  {
+    "name": "Dallas Central Hospital",
+    "lat": 32.78,
+    "lon": -96.8,
+    "capabilities": [
+      "surgery",
+      "icu",
+      "cardiac"
+    ],
+    "available": true
+  },
+  {
+    "name": "Trinity Park Emergency & Trauma",
+    "lat": 32.76,
+    "lon": -96.82,
+    "capabilities": [
+      "trauma",
+      "icu"
+    ],
+    "available": false
+  },
+  {
+    "name": "Waco Regional Hospital",
+    "lat": 31.55,
+    "lon": -97.15,
+    "capabilities": [
+      "surgery",
+      "icu"
+    ],
+    "available": true
+  },
+  {
+    "name": "El Paso Mountain View Medical",
+    "lat": 31.77,
+    "lon": -106.49,
+    "capabilities": [
+      "trauma",
+      "surgery",
+      "icu",
+      "helipad"
+    ],
+    "available": true
+  },
+  {
+    "name": "Laredo Gateway Health Center",
+    "lat": 27.51,
+    "lon": -99.505,
+    "capabilities": [
+      "basic",
+      "maternity"
+    ],
+    "available": false
+  },
+  {
+    "name": "Galveston Island Medical Center",
+    "lat": 29.301,
+    "lon": -94.797,
+    "capabilities": [
+      "surgery",
+      "icu",
+      "burn"
+    ],
+    "available": true
+  },
+  {
+    "name": "Amarillo High Plains Hospital",
+    "lat": 35.222,
+    "lon": -101.831,
+    "capabilities": [
+      "trauma",
+      "icu"
+    ],
+    "available": true
+  },
+  {
+    "name": "Lubbock West Texas Medical",
+    "lat": 33.577,
+    "lon": -101.855,
+    "capabilities": [
+      "surgery",
+      "icu",
+      "pediatrics"
+    ],
+    "available": false
+  },
+  {
+    "name": "McAllen Rio Grande Medical Center",
+    "lat": 26.204,
+    "lon": -98.23,
+    "capabilities": [
+      "surgery",
+      "icu",
+      "maternity"
+    ],
+    "available": true
+  }
+]

@@ -1,0 +1,150 @@
+{
+  "chats": [
+    {
+      "users": ["cpt.t.parker@dev.mil", "lt.j.davis@dev.mil"],
+      "chat": [
+        {"from": "cpt.t.parker@dev.mil", "contents": "Charlie 1, Charlie 6. OPORD follows for Co C operation WOLVERINE. DTG 241800Z. Acknowledge receipt in parts."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Charlie 6, Charlie 1 copies. Ready to receive OPORD in parts."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "5-paragraph OPORD – 1. SITUATION. a. Enemy: Donovian recon elements (BMP-2 section, dismount squad) screening south of RAZISH along MSR GREEN. Expect OPFOR UAS (quad) and spot mortar section 82mm vicinity 38T MN 2330 5710. b. Friendly: 1-66 AR to our west attacks to fix near OBJ BULL. B Co secures PL BRONZE. C Co (us) secures OBJ HAWK to enable BN passage. c. Attachments: 1 x FO, 1 x EOD team in support. d. Civilians: Low density; local farmers near VAZIANI. ROE unchanged."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "2. MISSION. C Co secures OBJ HAWK vicinity 38T MN 2385 5650 NLT 242145Z to enable BN passage east to west. Be prepared (BEPREP) to block counterattack along MSR GREEN. Purpose: freedom of maneuver for BN main body."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "3. EXECUTION. a. Commander's Intent: Key is rapid seizure of OBJ HAWK, deny enemy observation on MSR. End state: OBJ HAWK secured; MSR GREEN open; EN recon pushed north. b. Concept: Co attacks from south along AA PINE. 1st PLT (main effort) clears OBJ HAWK buildings 1-3; 2nd PLT isolates to east; 3rd PLT screens west. Mortars on-call, no prep fires to preserve surprise. c. Tasks: 1st PLT – breach/clear BLDGs 1-3, establish SBF marker SMOKE WHITE on call. 2nd PLT – establish blocking positions at CP 2 (38T MN 2400 5655). 3rd PLT – screen west along lateral road. d. Fires: Priority to 1st PLT. e. Coordinating: LD 242000Z from PL OAK. TRP names: RIVER, BRIDGE, MILL. PIR: EN mortar location, UAS launch site."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "4. SUSTAINMENT. CCP at 38T MN 2360 5635. BAS at BN trains. LOGPAC windows 243000Z and 250300Z. CASEVAC primary route MSR GREEN; alt farm track west. Water resupply at LOGPAC 1. 5. COMMAND & SIGNAL. Co CMD NET 30.000 MHz, A/L NET 31.500 MHz, Co Freq Hop plan Annex K. Call signs: Charlie 6 (me), Charlie 1 (you). Challenge/Password: RIVER/STONE (expires 250600Z). Location of Co CP: 38T MN 2355 5632 at LD, then jump to OBJ HAWK once secured."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Charlie 6, Charlie 1. OPORD received. Will generate WARNO for 1st PLT. Quick question: any UAS ROZ or counter-UAS triggers?"},
+        {"from": "cpt.t.parker@dev.mil", "contents": "ROZ – NA at company level; report any UAS sightings; authorization for small arms engagement per ROE. BN EW can task on-call if we get grid. Keep cameras covered if overhead."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Copy. For breaching, confirm we have EOD attached for doors wired?"},
+        {"from": "cpt.t.parker@dev.mil", "contents": "EOD in support, on your net when called; they remain with Co HQ. Request 10 min notice."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Wilco. Minor admin: I’ll need fresh batteries for the handhelds; last time at UJEN we had dead spares. Also, we still returning the projector to S-3?"},
+        {"from": "cpt.t.parker@dev.mil", "contents": "Batteries in LOGPAC 1. Projector to S-3 after mission; don't worry now. Also, weather says crosswind 10-12kts; dust low."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Understood. We'll mark OBJ with SMOKE WHITE if needed. Acknowledging OPORD complete. I’ll send WARNO shortly."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "Good copy. Keep 2nd PLT informed on your LD timing so isolation is up before you breach."}
+      ]
+    },
+
+    {
+      "users": ["cpt.t.parker@dev.mil", "lt.j.davis@dev.mil"],
+      "chat": [
+        {"from": "cpt.t.parker@dev.mil", "contents": "Charlie 1, FRAGO 01 to OPORD WOLVERINE."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Send FRAGO, over."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "1. SITUATION: Change – reports of EN recon patrol shifting east along orchard lane. 2. MISSION: No change. 3. EXECUTION: a) LD moved to 241955Z (5 min earlier) to beat EN movement. b) 2nd PLT block reposition to CP 2A at 38T MN 2410 5658. c) EOD standby on OBJ at H+20. 4. SUSTAINMENT: LOGPAC 1 unchanged. 5. C2: No change."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Copy FRAGO 01. Adjusting my LD to 1955Z and notifying 2nd PLT. We'll update graphics for CP 2A."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "Also, PIR update: confirm whether mortar section displaces north or maintains at MN 2330 5710. Priority collection during approach."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Roger. We'll have the FO glass that lane. Side note: my map print still says MN 2385 5650 for OBJ; same as brief?"},
+        {"from": "cpt.t.parker@dev.mil", "contents": "Affirm same. Don’t use the old OBJ grid from the UJEN lane (MN 2380 5650) – that was last week. Similar but not the same."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Thanks—caught it. We'll step off on time."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "Send ready-to-LD at 1945Z. Good hunting."}
+      ]
+    },
+
+    {
+      "users": ["lt.j.davis@dev.mil", "psg.m.ortiz@dev.mil"],
+      "chat": [
+        {"from": "lt.j.davis@dev.mil", "contents": "Ortiz, status check on the patrol route along AA PINE. We’ll do a SITREP roll-up for Co in 20."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "LT, we’re staged short of PL OAK. Terrain: low walls, orchard rows, shallow ditches. Traffic is light—saw one tractor. Weather steady, 8C, overcast. Visibility good."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Any UAS overhead?"},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Negative eyes on. Heard a buzz earlier but turned out to be the FO’s coffee grinder. He brought the loud one again."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Figures. For SITREP: Friendly – 1st PLT minus 3rd Squad point team holding 38T MN 2348 5639. 3rd Squad point is bounding to wall line MN 2352 5642. Copy?"},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Copy. EN activity – two possible scouts observed 700m north along MSR GREEN at 241730Z, lost sight after 2 min. No contact. Civilians – one farmer moving west with cart, non-interfering."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Noted. For CASEVAC planning, confirm we have a reasonable HLZ vicinity? I’m thinking the field at 38T MN 2349 5645, open, no power lines."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Affirm HLZ good. Ground is firm. Marking method on call: SMOKE GREEN. If wind shifts, we’ll switch to panel if dust picks up."},
+        {"from": "lt.j.davis@dev.mil", "contents": "CMD NET remains 30.000 MHz. Call sign ‘Charlie 1’. A/L 31.500 for internal. Keep that ready. This is pre-planning only."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Roger, no casualties. Just making sure we don’t fumble like UJEN last month when we grabbed the wrong smoke color. That was embarrassing."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Yeah, let’s not repeat the UJEN grid mix-up either—OBJ there was MN 2380 5650; tonight is MN 2385 5650. Close but not the same."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "SITREP detail: Route security – Flanks covered by 3rd Squad. Overwatch positions set at each orchard gap. IR chemlights prepped for linkup points. Night vision all green so far."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Copy. If we needed to call a bird, the pickup site security would be ‘no enemy in area; caution long fields of fire to north.’ We’ll keep it generic for now. No injuries to report."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Frequency noted. Succession of command unchanged. Also, two radios show low battery—swapping now. I stashed extras in ruck top pouches this time."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Good. Remind teams: white light discipline. Last time someone blasted a headlamp and it lit half of RAZISH."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Ha, yeah. Also, we passed a stray dog squad tried to befriend. I denied it soft chow; morale will survive."},
+        {"from": "lt.j.davis@dev.mil", "contents": "HLZ marking preference remains SMOKE GREEN; backup panels. Nationality/status if needed: US Mil only for now; no locals with us."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Roger. Terrain for pickup (line 9 if it comes to it): flat agricultural plot, minimal obstacles, approach from south preferred due to tree lines north."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Excellent. I’ll bundle this into a SITREP: Friendly at MN 2348 5639, movement to MN 2352 5642; EN recon possible north; Civ low; Sustainment green; No SIGACTs."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "LT, side note: 3rd Squad swears they saw ‘something reflective’ by the culvert. Probably a candy wrapper. I checked – nothing. Logging as noise."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Good call. Also, let’s validate smoke colors at each ORP. Green now; white reserved for SBF marker later per Co plan."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Affirm. Weather trending colder but still fine. We’ll LD on time. I’ll ping you if anything changes on MSR GREEN."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Roger. Keep comms clean. I’ll inform Co: no change to plan; HLZ option identified; no casualties; security posture steady."}
+      ]
+    },
+
+    {
+      "users": ["lt.j.davis@dev.mil", "psg.m.ortiz@dev.mil"],
+      "chat": [
+        {"from": "lt.j.davis@dev.mil", "contents": "Ortiz, second patrol lane near the mill road. We’re still in MOPP gear per BN guidance; confirm masks sealed?"},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "MOPP 4 maintained. Everyone’s complaining about fogged lenses, but seals are good. RADIAC ticking a little higher than the assembly area, still within guidance."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Copy. Let’s pre-brief an HLZ in case. I see a narrow meadow at 38T MN 2415 5628, minimal wires, some brush on the east edge."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "I walked it earlier. Slope gentle, rotor wash might kick dust. Marking preference SMOKE YELLOW if visibility allows; otherwise IR strobe covered."},
+        {"from": "lt.j.davis@dev.mil", "contents": "CMD NET 30.000 MHz remains primary; call sign still ‘Charlie 1’. Keep A/L 31.500 up on Team 2 for internal traffic."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Roger. We have the company map overlay updated; I almost grabbed the old one from UJEN with the wrong boundary—caught it."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Good catch. If we do need pickup, security note: potential observation from the mill’s upper windows; recommend south approach for air."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Concur. Also, interpreter team is riding trail with 2nd Squad. They’re in full MOPP and moving slower than usual. They’ll make it though."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Roger. Nationality mix in the element includes US Mil and contracted linguists. We’ll keep that straight if we end up requesting anything."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Terrain (line 9 style): meadow soft but manageable; tree line east; creek bed to the west; approach from south cleanest."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Noted. No casualties reported. This is pre-planning only. I don’t want anyone jumping steps until we have a bona fide requirement."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Understood. Side chatter: team keeps grumbling about the masks; someone said the canteen cap leaks. I checked – it’s fine, they were just in a hurry."},
+        {"from": "lt.j.davis@dev.mil", "contents": "We’ll keep the pace reasonable. If we do need to mark, we’ll avoid any colored smoke that conflicts with company signals. Yellow is fine here."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Copy. Also, heard distant clacking—likely the RADIAC chirp from Team 2 checking background. It’s slightly elevated compared to the orchard lane earlier."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Thanks. I’ll annotate: MOPP 4, background elevated, movement slower, HLZ identified at MN 2415 5628, security notes for pickup, no casualties at this time."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "SITREP addition: Civilians zero; roads empty; wind shifting from west. If air approaches from south, crosswind approx 10kts."},
+        {"from": "lt.j.davis@dev.mil", "contents": "All captured. Keep me posted if anything changes with 2nd Squad or the interpreter team. Maintain MOPP discipline until BN adjusts posture."}
+      ]
+    },
+
+    {
+      "users": ["cpt.s.kim@dev.mil", "lt.j.davis@dev.mil"],
+      "chat": [
+        {"from": "cpt.s.kim@dev.mil", "contents": "Charlie 1, this is Viper 6. New tasking from higher – OPORD ORYX follows (company-level)."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Viper 6, Charlie 1 ready to receive."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "1. SITUATION: EN platoon (+) preparing to interdict MSR BLUE near bridge crossing 38T MN 2205 5580. Expect BMPs and dismounted AT. FRIENDLY: Bn main effort is B Co seizing the bridge. We (C Co) clear the south bank hamlets to deny EN observation."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "2. MISSION: C Co clears HAMLETS SOUTH vicinity 38T MN 2220 5570 to 38T MN 2240 5560 NLT 251230Z to enable secure BN crossing."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "3. EXECUTION: Intent – deny EN observation and AT shots on the bridge. Concept – 1st PLT isolates east approach, 2nd PLT clears HAMLET ONE, 3rd PLT clears HAMLET TWO; Co HQ follows and establishes CP at MN 2218 5565. Fires priority to 2nd PLT. LD at 251100Z from PL MAPLE."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "Tasks to you (1st PLT): Establish isolation along the east road – set BP ALPHA at MN 2235 5568 covering north-south movement; deny egress from hamlets; mark cleared lanes with IR chems; be prepared to assume clearing if 2nd PLT bogs down."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "4. SUSTAINMENT: CCP at MN 2216 5562; LOGPAC 251500Z; water resupply pushed with LOGPAC. 5. C2: Co CMD NET 30.000 MHz; A/L 31.500 MHz; Co CP jumps to HAMLET ONE at H+45."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Copy OPORD ORYX. Isolation tasks understood. Any constraint on smoke colors? We’ll use white for SBF per previous SOP."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "Use white for SBF, green for marking lanes – matches SOP. Avoid yellow during this period due to other company’s signals."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Roger. Request confirmation: TRPs for ISR – BRIDGE-1 at MN 2208 5578, MILL-1 at MN 2230 5570. We’ll report movement against those."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "Affirm on TRPs. And watch for EN UAS – report grid and altitude estimate if you sight it. EW on-call again."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Noted. Side admin: My map had a legacy boundary from Razish lane; already updated. Also, our coffee press broke. Expect low morale until resupply."},
+        {"from": "cpt.s.kim@dev.mil", "contents": "Ha. Promise of coffee at LOGPAC. Push me a WARNO and prep plan for isolation. Ping ready-to-LD 1100Z plus 10."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Understood. WARNO inbound shortly. We’ll stage at PL MAPLE by 251050Z and be set to isolate at H-hour."}
+      ]
+    },
+
+    {
+      "users": ["lt.j.davis@dev.mil", "psg.m.ortiz@dev.mil"],
+      "chat": [
+        {"from": "lt.j.davis@dev.mil", "contents": "Ortiz, quick walk on a different HLZ option near the river bend for contingency planning."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "I have eyes on a narrow bank at 38T MN 2198 5586. Soft ground, reeds, but clear of wires. Approach from east would be tight due to trees."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Let’s mark that as tertiary HLZ – call it LZ REED. If used, method is panels due to smoke dispersion by the river breeze."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Copy LZ REED. Radios good. CMD 30.000, internal 31.500. No casualties; this is contingency only. Interpreter team is not on this route tonight."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Security note: Bridge overwatch has decent line of sight down to the bend. If we had to bring air, request approach from west to avoid tree line vortices."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Understood. Also, some chatter about last mission at UJEN – folks remember a similar bend but that grid was 38T MN 2190 5590. This one’s 2198 5586; close but different."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Good reminder. Keep everyone clear on tonight’s graphics. If anything changes, we’ll update Co with a quick SITREP."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Roger. Morale surprisingly high even without coffee. I told them it’s all mental."}
+      ]
+    },
+
+    {
+      "users": ["cpt.t.parker@dev.mil", "lt.j.davis@dev.mil"],
+      "chat": [
+        {"from": "cpt.t.parker@dev.mil", "contents": "Log note, Charlie 1: BN moved the LOGPAC window 30 min earlier. New window 242330Z. Update your teams."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Roger. We’ll stage empty cans earlier. Any change to CCP at MN 2360 5635?"},
+        {"from": "cpt.t.parker@dev.mil", "contents": "CCP unchanged. And remind everyone, no use of yellow smoke except as directed – we need it reserved for med marking in some lanes."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Copy on smoke. Side note: the projector is still in my truck. I’ll hand it to S-3 after we secure OBJ HAWK."},
+        {"from": "cpt.t.parker@dev.mil", "contents": "Fine. Don’t let it rattle around. Also, someone left a poncho liner at the TOC – not our problem but ask your folks."},
+        {"from": "lt.j.davis@dev.mil", "contents": "I’ll check lost and found morale items. We’re green for LD."}
+      ]
+    },
+
+    {
+      "users": ["lt.j.davis@dev.mil", "psg.m.ortiz@dev.mil"],
+      "chat": [
+        {"from": "lt.j.davis@dev.mil", "contents": "Ortiz, final comms check before LD on ORYX. Isolation positions set?"},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "BP ALPHA at 38T MN 2235 5568 set. Sectors assigned. Team 2 has IR chems staged. No civilians currently on the road."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Good. For contingency MEDEVAC pre-brief: nearest HLZ is the school field at 38T MN 2225 5566, open and flat. Marking method SMOKE GREEN; backup panels."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Roger. CMD NET 30.000; call sign remains ‘Charlie 1’. Security of pickup if needed: friendly perimeter, no known EN within 500m, caution bridge overwatch to the north."},
+        {"from": "lt.j.davis@dev.mil", "contents": "Affirm. Keep it all notional unless we actually need it. Also, avoid confusing last week’s HAMLET TWO grid (MN 2245 5558) with today’s – today is MN 2240 5560."},
+        {"from": "psg.m.ortiz@dev.mil", "contents": "Understood. Morale note: someone is still sore about the coffee press. We’ll live. Ready to LD."}
+      ]
+    }
+  ]
+}
+
+

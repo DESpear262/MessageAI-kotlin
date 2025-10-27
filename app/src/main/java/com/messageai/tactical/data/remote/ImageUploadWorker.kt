@@ -1,13 +1,17 @@
+/**
+ * MessageAI – ImageUploadWorker for background image uploads.
+ *
+ * Handles processing and uploading images to Firebase Storage with retry logic.
+ * Images are resized, compressed, and EXIF-stripped before upload. On success,
+ * updates the message document with the download URL and patches local Room state.
+ */
 package com.messageai.tactical.data.remote
 
 import android.content.Context
 import android.net.Uri
 import androidx.hilt.work.HiltWorker
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -15,10 +19,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.messageai.tactical.data.db.AppDatabase
 import com.messageai.tactical.data.media.ImageService
+import com.messageai.tactical.util.WorkerHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class ImageUploadWorker @AssistedInject constructor(
@@ -100,11 +104,6 @@ class ImageUploadWorker @AssistedInject constructor(
         const val KEY_SENDER_ID = "senderId"
 
         fun enqueue(context: Context, messageId: String, chatId: String, senderId: String, localPath: String) {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(true)
-                .build()
-
             val data = androidx.work.Data.Builder()
                 .putString(KEY_MESSAGE_ID, messageId)
                 .putString(KEY_CHAT_ID, chatId)
@@ -113,8 +112,12 @@ class ImageUploadWorker @AssistedInject constructor(
                 .build()
 
             val request = OneTimeWorkRequestBuilder<ImageUploadWorker>()
-                .setConstraints(constraints)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 2, TimeUnit.SECONDS)
+                .setConstraints(WorkerHelper.standardConstraints())
+                .setBackoffCriteria(
+                    WorkerHelper.standardBackoffPolicy(),
+                    WorkerHelper.BACKOFF_DELAY_SECONDS,
+                    WorkerHelper.BACKOFF_TIME_UNIT
+                )
                 .setInputData(data)
                 .build()
 

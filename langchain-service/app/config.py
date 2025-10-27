@@ -1,0 +1,13 @@
+import os
+
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+FIRESTORE_PROJECT_ID = os.getenv("FIRESTORE_PROJECT_ID", "")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "messageai-langchain")
+LANGCHAIN_SHARED_SECRET = os.getenv("LANGCHAIN_SHARED_SECRET", "")
+SIGNATURE_MAX_AGE_SECONDS = int(os.getenv("SIGNATURE_MAX_AGE_SECONDS", "300"))
+FIRESTORE_FORCE_PROD = os.getenv("FIRESTORE_FORCE_PROD", "0") in {"1", "true", "TRUE", "yes", "on"}
+
+

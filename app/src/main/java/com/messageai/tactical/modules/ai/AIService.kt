@@ -1,0 +1,156 @@
+package com.messageai.tactical.modules.ai
+
+import com.messageai.tactical.data.db.MessageDao
+import com.messageai.tactical.data.db.MessageEntity
+import com.messageai.tactical.modules.ai.provider.LangChainAdapter
+
+class AIService(
+    private val dao: MessageDao,
+    private val provider: IAIProvider,
+    private val adapter: LangChainAdapter,
+    private val contextBuilder: RagContextBuilder
+) {
+    suspend fun generateTemplate(chatId: String, type: String, maxMessages: Int = 50): Result<Map<String, Any?>> {
+        val ctx = contextBuilder.build(
+            RagContextBuilder.WindowSpec(chatId = chatId, maxMessages = maxMessages)
+        )
+        val serialized = ctx.joinToString("\n") { it["text"]?.toString().orEmpty() }
+        return provider.generateTemplate(type, serialized)
+    }
+
+    suspend fun extractGeoData(text: String): Result<Map<String, Any?>> = provider.extractGeoData(text)
+
+    suspend fun summarizeThreats(
+        chatId: String,
+        maxMessages: Int,
+        currentLat: Double?,
+        currentLon: Double?,
+        triggerMessageId: String? = null
+    ): Result<List<Map<String, Any?>>> {
+        // Send chatId and current device location so backend can compute relative offsets.
+        return try {
+            val payload = buildMap<String, Any?> {
+                put("maxMessages", maxMessages)
+                if (currentLat != null && currentLon != null) {
+                    put("currentLocation", mapOf("lat" to currentLat, "lon" to currentLon))
+                }
+                if (!triggerMessageId.isNullOrBlank()) {
+                    put("triggerMessageId", triggerMessageId)
+                }
+            }
+            val resp = adapter.post(
+                path = "threats/extract",
+                payload = payload,
+                context = mapOf("chatId" to chatId)
+            )
+            val data = resp.data ?: emptyMap()
+            @Suppress("UNCHECKED_CAST")
+            Result.success((data["threats"] as? List<Map<String, Any?>>) ?: emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun detectIntent(chatId: String, minMessages: Int): Result<Map<String, Any?>> {
+        val rows: List<MessageEntity> = dao.getLastMessages(chatId, minMessages)
+        return provider.detectIntent(rows)
+    }
+
+    suspend fun runWorkflow(path: String, payload: Map<String, Any?>): Result<Map<String, Any?>> {
+        // Simple passthrough; provider may delegate to adapter. Context can be merged into payload by provider.
+        return provider.runWorkflow(path, payload)
+    }
+
+    /** Execute the CASEVAC workflow on the server, passing chat context for attribution. */
+    suspend fun runCasevacRemote(chatId: String?, args: Map<String, Any?> = emptyMap()): Result<Map<String, Any?>> = runCatching {
+        val resp = adapter.post(
+            path = "workflow/casevac/run",
+            payload = args,
+            context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
+        )
+        resp.data ?: emptyMap()
+    }
+
+    suspend fun extractTasks(chatId: String, maxMessages: Int = 100): Result<List<Map<String, Any?>>> {
+        val ctx = contextBuilder.build(
+            RagContextBuilder.WindowSpec(chatId = chatId, maxMessages = maxMessages)
+        )
+        val serialized = ctx.joinToString("\n") { it["text"]?.toString().orEmpty() }
+        // Route via LangChain adapter (stub path /tasks/extract)
+        return try {
+            val resp = adapter.post("tasks/extract", mapOf("contextText" to serialized), mapOf("chatId" to chatId))
+            val data = resp.data ?: emptyMap()
+            val tasks = (data["tasks"] as? List<Map<String, Any?>>) ?: emptyList()
+            Result.success(tasks)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Intent detection directly from raw text messages without requiring a chat context.
+     * Used by AI Buddy to parse prompts even when no chat has been opened yet.
+     */
+    suspend fun detectIntentFromText(messages: List<String>): Result<Map<String, Any?>> = runCatching {
+        val resp = adapter.post("intent/casevac/detect", mapOf("messages" to messages), emptyMap())
+        resp.data ?: emptyMap()
+    }
+
+    /**
+     * Single-message threat extraction (no chat history). The backend strictly evaluates the given message only.
+     */
+    suspend fun extractThreatsFromMessage(
+        chatId: String?,
+        messageId: String?,
+        text: String,
+        currentLat: Double?,
+        currentLon: Double?
+    ): Result<List<Map<String, Any?>>> = runCatching {
+        val payload = buildMap<String, Any?> {
+            put("message", mapOf("id" to (messageId ?: ""), "text" to text))
+            if (!messageId.isNullOrBlank()) put("triggerMessageId", messageId)
+            if (currentLat != null && currentLon != null) put("currentLocation", mapOf("lat" to currentLat, "lon" to currentLon))
+        }
+        val resp = adapter.post(
+            path = "threats/extract",
+            payload = payload,
+            context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
+        )
+        val data = resp.data ?: emptyMap()
+        @Suppress("UNCHECKED_CAST")
+        (data["threats"] as? List<Map<String, Any?>>) ?: emptyList()
+    }
+
+    /** Single entry point for AI Buddy: send prompt and let server choose tools. */
+    suspend fun routeAssistant(chatId: String?, prompt: String, candidateChats: List<Map<String, Any?>> = emptyList()): Result<Map<String, Any?>> = runCatching {
+        val resp = adapter.post(
+            path = "assistant/route",
+            payload = mapOf(
+                "prompt" to prompt,
+                "candidateChats" to candidateChats
+            ),
+            context = if (chatId != null) mapOf("chatId" to chatId) else emptyMap()
+        )
+        resp.data ?: emptyMap()
+    }
+
+    /** Mission planning via backend tool. Returns plan envelope with tasks; client may persist. */
+    suspend fun planMission(
+        chatId: String,
+        prompt: String? = null,
+        candidateChats: List<Map<String, Any?>> = emptyList()
+    ): Result<Map<String, Any?>> = runCatching {
+        val payload = buildMap<String, Any?> {
+            if (!prompt.isNullOrBlank()) put("prompt", prompt)
+            if (candidateChats.isNotEmpty()) put("candidateChats", candidateChats)
+        }
+        val resp = adapter.post(
+            path = "missions/plan",
+            payload = payload,
+            context = mapOf("chatId" to chatId)
+        )
+        resp.data ?: emptyMap()
+    }
+}
+
+

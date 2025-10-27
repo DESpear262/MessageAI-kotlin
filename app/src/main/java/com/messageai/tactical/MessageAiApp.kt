@@ -24,10 +24,15 @@ import kotlinx.coroutines.launch
 class MessageAiApp : Application(), Configuration.Provider {
     @Inject lateinit var db: AppDatabase
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var networkHeartbeat: com.messageai.tactical.data.remote.NetworkHeartbeat
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Start network heartbeat monitoring (cellular)
+        try { networkHeartbeat.start() } catch (_: Exception) {}
+        // Start recurring geofence checks every ~5 minutes
+        try { com.messageai.tactical.data.remote.GeofenceWorker.scheduleRecurring5m(this) } catch (_: Exception) {}
         // Re-scan pending sends and enqueue
         CoroutineScope(Dispatchers.Default).launch {
             try {
@@ -52,6 +57,8 @@ class MessageAiApp : Application(), Configuration.Provider {
                 // Best-effort; safe to ignore at launch
             }
         }
+
+        // Avoid early access to Hilt entrypoints to prevent dependency cycles.
     }
 
     override val workManagerConfiguration: Configuration

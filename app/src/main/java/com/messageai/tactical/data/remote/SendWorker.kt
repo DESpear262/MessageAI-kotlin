@@ -1,12 +1,16 @@
+/**
+ * MessageAI – SendWorker for background message sending.
+ *
+ * Handles uploading message documents to Firestore with retry logic and backoff.
+ * Updates local Room database on successful send. Part of the offline-first
+ * architecture, ensuring messages are eventually delivered even after app restarts.
+ */
 package com.messageai.tactical.data.remote
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -14,10 +18,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.messageai.tactical.data.db.AppDatabase
+import com.messageai.tactical.util.WorkerHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class SendWorker @AssistedInject constructor(
@@ -55,6 +59,19 @@ class SendWorker @AssistedInject constructor(
                 .document(messageId)
                 .set(doc, SetOptions.merge())
                 .await()
+            // Gate each human text message for escalation using cheap LLM
+            if (!text.isNullOrBlank() && senderId != com.messageai.tactical.ui.main.aibuddy.AIBuddyRouter.AI_UID) {
+                try {
+                    // Call CF proxy to gate; on escalate=true, trigger assistant/route flow asynchronously
+                    val gate = gateAssistant(text)
+                    android.util.Log.i("SendWorker", "assistant/gate escalate=${gate}")
+                    if (gate) {
+                        com.messageai.tactical.modules.ai.backfill.RouteExecutor.enqueue(applicationContext, chatId, messageId, text)
+                    }
+                } catch (_: Exception) {
+                    // No-op on error per spec
+                }
+            }
             // Update lastMessage metadata
             val last = hashMapOf(
                 "text" to text,
@@ -85,11 +102,6 @@ class SendWorker @AssistedInject constructor(
         const val KEY_IMAGE_LOCAL_PATH = "imageLocalPath"
 
         fun enqueue(context: Context, messageId: String, chatId: String, senderId: String, text: String?, clientTs: Long, imageLocalPath: String? = null) {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(true)
-                .build()
-
             val data = androidx.work.Data.Builder()
                 .putString(KEY_MESSAGE_ID, messageId)
                 .putString(KEY_CHAT_ID, chatId)
@@ -100,8 +112,12 @@ class SendWorker @AssistedInject constructor(
                 .build()
 
             val request = OneTimeWorkRequestBuilder<SendWorker>()
-                .setConstraints(constraints)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 2, TimeUnit.SECONDS)
+                .setConstraints(WorkerHelper.standardConstraints())
+                .setBackoffCriteria(
+                    WorkerHelper.standardBackoffPolicy(),
+                    WorkerHelper.BACKOFF_DELAY_SECONDS,
+                    WorkerHelper.BACKOFF_TIME_UNIT
+                )
                 .setInputData(data)
                 .build()
 
@@ -111,5 +127,33 @@ class SendWorker @AssistedInject constructor(
                 request
             )
         }
+    }
+}
+
+private suspend fun SendWorker.gateAssistant(prompt: String): Boolean {
+    // Minimal Retrofit-free call: use OkHttp since it's already a transitive dependency
+    return try {
+        val base = com.messageai.tactical.BuildConfig.CF_BASE_URL
+        val url = java.net.URL(base + "assistant/gate")
+        val body = ("{" + "\"requestId\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
+            "\"context\":{}," +
+            "\"payload\":{\"prompt\":\"" + prompt.replace("\"", "\\\"") + "\"}" + "}").toByteArray()
+        val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            // Best-effort auth: ID token header if available
+            try {
+                val token = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+                if (!token.isNullOrEmpty()) setRequestProperty("Authorization", "Bearer $token")
+            } catch (_: Exception) {}
+        }
+        conn.outputStream.use { it.write(body) }
+        val resp = conn.inputStream.bufferedReader().use { it.readText() }
+        val obj = org.json.JSONObject(resp)
+        val data = obj.optJSONObject("data")
+        data?.optBoolean("escalate", false) ?: false
+    } catch (_: Exception) {
+        false
     }
 }

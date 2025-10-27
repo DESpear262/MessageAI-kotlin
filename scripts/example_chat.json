@@ -1,0 +1,10 @@
+{
+  "users": ["test@fakeemail.com", "alice@example.com"],
+  "chat": [
+    { "from": "test@fakeemail.com", "contents": "Hi Alice, testing loader." },
+    { "from": "alice@example.com",   "contents": "Hey! Looks good." }
+  ]
+}
+
+
+
