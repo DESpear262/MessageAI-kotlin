@@ -25,7 +25,7 @@ fun ReportPreviewScreen(
     val md by viewModel.markdown.collectAsState()
     val loading by viewModel.loading.collectAsState()
 
-    LaunchedEffect(kind, chatId) {
+    LaunchedEffect(key1 = kind, key2 = chatId) {
         when (kind.lowercase()) {
             "sitrep" -> viewModel.loadSitrep(chatId ?: "", "6h")
             "warnord", "opord", "frago", "medevac" -> viewModel.loadTemplate(kind, chatId)

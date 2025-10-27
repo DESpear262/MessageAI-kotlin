@@ -78,53 +78,7 @@ fun MainTabs(onLogout: () -> Unit, onOpenChat: (String) -> Unit = {}, onCreateCh
             }
             1 -> MissionBoardScreen(chatId = "global", onOpenMission = onOpenMission)
             2 -> com.messageai.tactical.ui.main.aibuddy.AIBuddyScreen(onBackToChats = { tab = 0 })
-            3 -> {
-                val ctx = LocalContext.current
-                var kind by remember { mutableStateOf<String?>(null) }
-                Column(modifier = Modifier.padding(padding)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(onClick = { kind = "opord" }, modifier = Modifier.weight(1f)) { Text("OPORD") }
-                            Button(onClick = { kind = "warnord" }, modifier = Modifier.weight(1f)) { Text("WARNORD") }
-                            Button(onClick = { kind = "frago" }, modifier = Modifier.weight(1f)) { Text("FRAGO") }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(onClick = { kind = "sitrep" }, modifier = Modifier.weight(1f)) { Text("SITREP") }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Button(onClick = { kind = "medevac" }, modifier = Modifier.weight(1f)) { Text("MEDEVAC") }
-                        }
-                    }
-                    if (kind == null) {
-                        Text(
-                            text = "Select a report type to preview.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    } else {
-                        ReportPreviewScreen(
-                            chatId = null,
-                            kind = kind!!,
-                            onShare = { md ->
-                                val file = when (kind) {
-                                    "warnord" -> "warnord_preview.md"
-                                    "opord" -> "opord_preview.md"
-                                    "frago" -> "frago_preview.md"
-                                    "medevac" -> "medevac_preview.md"
-                                    else -> "sitrep_preview.md"
-                                }
-                                ReportShare.shareMarkdown(ctx, file, md)
-                            }
-                        )
-                    }
-                }
-            }
+            3 -> OutputsScreen()
         }
     }
 }

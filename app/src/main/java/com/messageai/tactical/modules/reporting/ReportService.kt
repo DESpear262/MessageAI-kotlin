@@ -2,11 +2,18 @@ package com.messageai.tactical.modules.reporting
 
 import com.messageai.tactical.modules.ai.api.AiRequestEnvelope
 import com.messageai.tactical.modules.ai.provider.LangChainAdapter
+import com.messageai.tactical.modules.documents.DocumentService
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
-class ReportService(private val adapter: LangChainAdapter) {
+class ReportService(
+    private val adapter: LangChainAdapter,
+    private val documentService: DocumentService
+) {
     private val cache = mutableMapOf<CacheKey, CachedReport>()
     private val cacheMutex = Mutex()
 
@@ -41,6 +48,18 @@ class ReportService(private val adapter: LangChainAdapter) {
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
 
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), SITREP_TTL_MS) }
+        // Persist document (best-effort)
+        try {
+            val title = defaultTitle("SITREP")
+            documentService.create(
+                type = "SITREP",
+                title = title,
+                content = md,
+                chatId = chatId,
+                format = "markdown",
+                metadata = mapOf("timeWindow" to timeWindow)
+            )
+        } catch (_: Exception) { }
         md
     }
 
@@ -58,6 +77,18 @@ class ReportService(private val adapter: LangChainAdapter) {
         val res = adapter.post("template/warnord", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        // Persist document (best-effort)
+        try {
+            val title = defaultTitle("WARNORD")
+            documentService.create(
+                type = "WARNORD",
+                title = title,
+                content = md,
+                chatId = chatId,
+                format = "markdown",
+                metadata = emptyMap()
+            )
+        } catch (_: Exception) { }
         android.util.Log.i("ReportService", "generateWarnord success len=${md.length}")
         md
     }
@@ -76,6 +107,18 @@ class ReportService(private val adapter: LangChainAdapter) {
         val res = adapter.post("template/opord", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        // Persist document (best-effort)
+        try {
+            val title = defaultTitle("OPORD")
+            documentService.create(
+                type = "OPORD",
+                title = title,
+                content = md,
+                chatId = chatId,
+                format = "markdown",
+                metadata = emptyMap()
+            )
+        } catch (_: Exception) { }
         android.util.Log.i("ReportService", "generateOpord success len=${md.length}")
         md
     }
@@ -94,6 +137,18 @@ class ReportService(private val adapter: LangChainAdapter) {
         val res = adapter.post("template/frago", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        // Persist document (best-effort)
+        try {
+            val title = defaultTitle("FRAGO")
+            documentService.create(
+                type = "FRAGO",
+                title = title,
+                content = md,
+                chatId = chatId,
+                format = "markdown",
+                metadata = emptyMap()
+            )
+        } catch (_: Exception) { }
         android.util.Log.i("ReportService", "generateFrago success len=${md.length}")
         md
     }
@@ -112,8 +167,25 @@ class ReportService(private val adapter: LangChainAdapter) {
         val res = adapter.post("template/medevac", payload, ctx)
         val md = (res.data?.get("content") as? String) ?: error("Missing markdown content")
         cacheMutex.withLock { cache[key] = CachedReport(md, System.currentTimeMillis(), TEMPLATE_TTL_MS) }
+        // Persist document (best-effort)
+        try {
+            val title = defaultTitle("MEDEVAC")
+            documentService.create(
+                type = "MEDEVAC",
+                title = title,
+                content = md,
+                chatId = chatId,
+                format = "markdown",
+                metadata = emptyMap()
+            )
+        } catch (_: Exception) { }
         android.util.Log.i("ReportService", "generateMedevac success len=${md.length}")
         md
+    }
+
+    private fun defaultTitle(type: String): String {
+        val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+        return "$type – ${fmt.format(Date())}"
     }
 }
 
