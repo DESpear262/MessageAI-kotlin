@@ -46,3 +46,12 @@ docker run -p 8080:8080 --env-file .env messageai-langchain:dev
 - Templates map to Input file templates in repo. Contracts mirror those field names.
 - Current implementation stubs out RAG and returns minimal, schema-valid data.
 - Integrate with CF proxy by setting the base URL in Android `BuildConfig.CF_BASE_URL` once the CF is deployed and `LANGCHAIN_BASE_URL` is configured.
+
+## HMAC Verification (from Cloud Functions)
+
+Incoming requests may include HMAC headers from the gateway:
+- `x-request-id` (UUID)
+- `x-sig-ts` (epoch millis)
+- `x-sig` (hex HMAC-SHA256 over `{requestId}.{ts}.{sha256(body)}` using `LANGCHAIN_SHARED_SECRET`)
+
+The service rejects requests when headers are missing, timestamps are invalid/stale, or the signature mismatches. See `app/main.py` middleware for details.

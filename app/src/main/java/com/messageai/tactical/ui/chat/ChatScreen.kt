@@ -41,8 +41,10 @@ import kotlinx.coroutines.flow.catch
 import android.util.Log
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.messageai.tactical.data.db.ChatDao
 import com.messageai.tactical.data.media.ImageService
 import com.messageai.tactical.data.remote.ImageUploadWorker
@@ -73,6 +75,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
     val title by vm.chatTitle(chatId).collectAsState(initial = "Chat")
     val otherUid by vm.otherParticipant(chatId).collectAsState(initial = null)
     val online by vm.userOnline(otherUid).collectAsState(initial = false)
+    val isGroup by vm.isGroup(chatId).collectAsState(initial = false)
+    val participantNames by vm.participantNames(chatId).collectAsState(initial = emptyMap())
 
     var input by remember { mutableStateOf(TextFieldValue("")) }
     val scope = rememberCoroutineScope()
@@ -183,6 +187,15 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                             ) {
                                 CompositionLocalProvider(LocalContentColor provides contentColor) {
                                     Column {
+                                        if (isGroup) {
+                                            val senderName = participantNames[msg.senderId]
+                                                ?: if (msg.senderId == vm.myUid) "Me" else msg.senderId
+                                            Text(
+                                                text = senderName,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                        }
                                         if (msg.imageUrl != null) {
                                             AsyncImage(
                                                 model = msg.imageUrl,
@@ -208,6 +221,44 @@ fun ChatScreen(chatId: String, onBack: () -> Unit) {
                                         }
                                         if (!msg.text.isNullOrBlank()) {
                                             Text(text = msg.text)
+                                        }
+                                        // Two-check footer: sent/delivered/read indicator for my messages
+                                        if (isMine) {
+                                            val jsonLocal = remember { Json { ignoreUnknownKeys = true } }
+                                            val deliveredBy: List<String> = try {
+                                                jsonLocal.decodeFromString(msg.deliveredBy)
+                                            } catch (_: Exception) { emptyList() }
+                                            val readBy: List<String> = try {
+                                                jsonLocal.decodeFromString(msg.readBy)
+                                            } catch (_: Exception) { emptyList() }
+
+                                            val hasDelivery = deliveredBy.isNotEmpty()
+                                            val hasRead = readBy.isNotEmpty()
+
+                                            val leftCheckAlpha = if (msg.status == "SENDING") 0.4f else 1f
+                                            val rightCheckAlpha = when {
+                                                hasRead -> 1f
+                                                hasDelivery -> 0.7f
+                                                else -> 0.4f
+                                            }
+
+                                            Spacer(Modifier.height(6.dp))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                Text(
+                                                    "✓",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = LocalContentColor.current.copy(alpha = leftCheckAlpha)
+                                                )
+                                                Text(
+                                                    "✓",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = LocalContentColor.current.copy(alpha = rightCheckAlpha)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -266,6 +317,7 @@ class ChatViewModel @Inject constructor(
     private val svc: MessageService,
     private val auth: FirebaseAuth,
     private val chatDao: ChatDao,
+    private val firestore: FirebaseFirestore,
     private val presence: PresenceService,
     private val messageListener: MessageListener,
     private val imageService: ImageService,
@@ -286,6 +338,27 @@ class ChatViewModel @Inject constructor(
             ParticipantHelper.getOtherParticipant(it.participants, myUid ?: "")
         }
     }
+
+    /** Returns true when the given chat is a group chat (3+ members). */
+    fun isGroup(chatId: String): kotlinx.coroutines.flow.Flow<Boolean> =
+        chatDao.getChat(chatId).map { it?.type == "group" }
+
+    /**
+     * Observes participant display names for a chat. Falls back to empty map if unavailable.
+     * Uses a Firestore snapshot listener so renames propagate live.
+     */
+    fun participantNames(chatId: String): kotlinx.coroutines.flow.Flow<Map<String, String>> =
+        kotlinx.coroutines.flow.flow {
+            val snap = firestore.collection(com.messageai.tactical.data.remote.FirestorePaths.CHATS)
+                .document(chatId)
+                .get()
+                .await()
+            val names = snap.toObject(com.messageai.tactical.data.remote.model.ChatDoc::class.java)
+                ?.participantDetails
+                ?.mapValues { it.value.name }
+                ?: emptyMap()
+            emit(names)
+        }
 
     fun userOnline(uid: String?): kotlinx.coroutines.flow.Flow<Boolean> =
         if (uid.isNullOrEmpty()) kotlinx.coroutines.flow.flowOf(false) else presence.isUserOnline(uid)

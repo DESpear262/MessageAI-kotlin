@@ -156,4 +156,4 @@ To switch the Android dev build to the emulator host:
 - Read the first error first; later errors often cascade.
 
 ### License
-TBD
+MIT — see `LICENSE`
